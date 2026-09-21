@@ -70,7 +70,8 @@ export async function POST(
       data: {
         assignmentId: id,
         questionNumber: body.questionNumber,
-        text: body.text.trim(),
+        content: body.text.trim(),
+        type: 'text',
         points: body.points,
         rubric: body.rubric?.trim() || null,
         expectedCriteria: body.expectedCriteria?.trim() || null,

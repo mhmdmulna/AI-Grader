@@ -111,49 +111,79 @@ npm run dev
 - Assignment document management
 - Server-side document API
 
-⏳ **Phase 4: Pending Implementation**
-- AI-assisted question extraction from PDFs
-- Student submission upload
-- Answer extraction from submissions
-- Vision-based analysis for screenshots
-- Answer normalization
+✅ **Phase 4: Answer Extraction (COMPLETE)**
+- AI-assisted question extraction from assignment PDFs
+- Answer extraction from student submissions
+- Evidence tracking and confidence scoring
+- Text-first extraction strategy (OpenAI integration)
+- Extraction status monitoring
+- Batch processing for multiple submissions
+- Structured data output (no grading/evaluation)
+
+⏳ **Phase 5: AI Grading (PENDING)**
+- Multi-provider AI grading (OpenAI, Claude, Gemini)
+- Evidence-based scoring
+- Rubric-aware evaluation
+- Grade justification generation
+
+⏳ **Phase 6: Grade Review & Export (PENDING)**
+- Human review interface
+- Grade adjustment tools
+- Export to Excel/CSV
+- Student feedback generation
 
 ## Database Schema
 
 Key entities:
 - **Course**: PBO or SISOP
 - **Assignment**: Assignment within a course (with status: draft/active/archived)
-- **Question**: Individual questions with rubrics
+- **Question**: Individual questions with rubrics and type (text, code, diagram, mixed)
 - **GradingCriterion**: Specific criteria for evaluating questions
 - **Document**: PDF documents (assignment questions, student submissions)
 - **DocumentPage**: Individual pages with extracted text and metadata
+- **QuestionExtraction**: Status tracking for AI question extraction
+- **AnswerExtraction**: Status tracking for AI answer extraction
+- **Evidence**: Evidence supporting answer extraction
 - **Submission**: Student PDF submissions
-- **ExtractedAnswer**: Parsed answers from PDFs
-- **Grade**: AI-generated scores with evidence
-- **GradeReview**: Human review and adjustments
+- **ExtractedAnswer**: Parsed answers from PDFs with confidence scores
+- **Grade**: AI-generated scores with evidence (Phase 5)
+- **GradeReview**: Human review and adjustments (Phase 6)
 
-## Document Processing
+## Document Processing & Extraction
 
-The system supports two document types:
-- **Assignment Question Documents**: PDF containing assignment questions
-- **Student Submission Documents**: PDF containing student answers (future)
+The system supports two document workflows:
+1. **Assignment Question Extraction** (Phase 4): Extract structured questions from assignment PDFs
+2. **Student Answer Extraction** (Phase 4): Extract answers from submission PDFs matched to questions
 
 ### Processing Pipeline
 ```
-PDF Upload → Validation → Storage → Text Extraction → Page Processing → Processed
+PDF Upload → Validation → Storage → Text Extraction → AI Extraction → Structured Data
 ```
+
+### Question Extraction
+- Identifies question numbers, types, and content
+- Extracts rubrics and point values
+- Tracks source pages
+- No grading/evaluation (extraction only)
+
+### Answer Extraction
+- Matches student answers to assignment questions
+- Extracts answer content with page references
+- Generates evidence and confidence scores
+- Batch processing support
 
 ### Features
 - Maximum file size: 20MB (configurable)
 - PDF validation and security checks
 - Automatic text extraction
 - Page-level metadata
-- Processing status tracking
+- Processing and extraction status tracking
+- Provider abstraction (OpenAI implemented, extensible)
 
 ### Limitations
-- Text-only extraction (OCR not yet implemented)
-- Scanned/image-only PDFs will have limited text
-- Vision analysis will be added in Phase 4
+- Text-first extraction (vision for Phase 4B)
+- OCR not yet implemented
+- Scanned/image-only PDFs will have limited extraction quality
 
 ## AI Architecture
 
@@ -165,12 +195,13 @@ PDF Upload → Validation → Storage → Text Extraction → Page Processing �
 - ⏳ Gemini (future)
 
 **Service Separation**:
-- Document analyzer
-- Answer extractor
-- Grader
-- Feedback generator
+- Document processor (Phase 3)
+- Question extractor (Phase 4)
+- Answer extractor (Phase 4)
+- Grader (Phase 5)
+- Feedback generator (Phase 6)
 
-Each service has a distinct purpose and does not overlap.
+Each service has a distinct purpose and does not overlap. Phase 4 extracts structure WITHOUT evaluation.
 
 ## Development Commands
 

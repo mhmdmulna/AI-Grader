@@ -26,21 +26,22 @@ export default function Home() {
               View Courses
             </a>
             <p className="text-sm text-zinc-500 dark:text-zinc-500">
-              Phase 2: Course & Assignment Management
+              Phase 4: Answer Extraction (COMPLETE)
             </p>
           </div>
 
           <div className="mt-8 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 w-full">
             <h2 className="text-xl font-semibold mb-3 text-black dark:text-white">
-              ✅ Phase 2 Complete
+              ✅ Phase 4 Complete - Answer Extraction
             </h2>
             <ul className="text-left text-sm text-zinc-600 dark:text-zinc-400 space-y-2">
-              <li>✅ Course management (PBO & SISOP)</li>
-              <li>✅ Assignment management with status</li>
-              <li>✅ Question management</li>
-              <li>✅ Grading criteria foundation</li>
-              <li>✅ Server-side API routes</li>
-              <li>✅ Basic UI for validation</li>
+              <li>✅ Question extraction from assignment PDFs</li>
+              <li>✅ Answer extraction from student submissions</li>
+              <li>✅ Evidence tracking and confidence scoring</li>
+              <li>✅ Extraction status monitoring</li>
+              <li>✅ Batch processing for multiple submissions</li>
+              <li>✅ Structured data output for Phase 5 grading</li>
+              <li>✅ Text-first AI extraction (OpenAI integration)</li>
             </ul>
           </div>
         </div>

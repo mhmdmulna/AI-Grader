@@ -24,19 +24,20 @@ model Course {
 
 // Assignments within a course
 model Assignment {
-  id           String              @id @default(cuid())
-  courseId     String
-  course       Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  title        String
-  description  String?             @db.Text
-  status       String              @default("draft") // draft, active, archived
-  documentId   String?             @unique // Reference to question document
-  document     Document?           @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-  questions    Question[]
-  submissions  Submission[]
-  criteria     GradingCriterion[]
+  id                 String               @id @default(cuid())
+  courseId           String
+  course             Course               @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title              String
+  description        String?              @db.Text
+  status             String               @default("draft") // draft, active, archived
+  documentId         String?              @unique // Reference to question document
+  document           Document?            @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  questions          Question[]
+  submissions        Submission[]
+  criteria           GradingCriterion[]
+  questionExtraction QuestionExtraction?
 
   @@index([courseId])
   @@index([status])
@@ -49,10 +50,13 @@ model Question {
   assignmentId     String
   assignment       Assignment          @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   questionNumber   Int
-  text             String              @db.Text
+  type             String              @default("text") // text, code, diagram, mixed
+  content          String              @db.Text // Renamed from 'text' to match extraction types
   points           Int
   rubric           String?             @db.Text
   expectedCriteria String?             @db.Text
+  sourcePages      Int[]               @default([]) // Pages where question was found
+  extractedFrom    String?             // "AI_EXTRACTION" or "MANUAL"
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   extractedAnswers ExtractedAnswer[]
@@ -84,18 +88,19 @@ model GradingCriterion {
 
 // Student submissions
 model Submission {
-  id               String            @id @default(cuid())
+  id               String             @id @default(cuid())
   assignmentId     String
-  assignment       Assignment        @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  assignment       Assignment         @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   studentName      String
   studentId        String
-  documentId       String?           @unique // Reference to submission document
-  document         Document?         @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  pdfUrl           String            // Legacy field, kept for compatibility
-  status           String            @default("uploaded") // uploaded, processing, extracted, graded, reviewed, finalized, error
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  documentId       String?            @unique // Reference to submission document
+  document         Document?          @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  pdfUrl           String             // Legacy field, kept for compatibility
+  status           String             @default("uploaded") // uploaded, processing, extracted, graded, reviewed, finalized, error
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
   extractedAnswers ExtractedAnswer[]
+  answerExtraction AnswerExtraction?
 
   @@index([assignmentId])
   @@index([status])
@@ -104,17 +109,20 @@ model Submission {
 
 // Extracted answers from submissions
 model ExtractedAnswer {
-  id           String     @id @default(cuid())
-  submissionId String
-  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  questionId   String
-  question     Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  content      String     @db.Text
-  contentType  String     @default("text") // text, image, mixed
-  pageNumbers  Int[]
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  grades       Grade[]
+  id            String              @id @default(cuid())
+  submissionId  String
+  submission    Submission          @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  questionId    String
+  question      Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  content       String              @db.Text
+  contentType   String              @default("text") // text, image, mixed
+  pageNumbers   Int[]
+  confidence    Float?              // Extraction confidence (0-1)
+  sourcePages   Int[]               @default([]) // Duplicate of pageNumbers for API compatibility
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  grades        Grade[]
+  evidence      Evidence[]
 
   @@index([submissionId])
   @@index([questionId])
@@ -200,4 +208,67 @@ model DocumentPage {
   @@unique([documentId, pageNumber])
   @@index([documentId])
   @@map("document_pages")
+}
+
+// Question extraction tracking
+model QuestionExtraction {
+  id               String      @id @default(cuid())
+  assignmentId     String      @unique
+  assignment       Assignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  documentId       String
+  status           String      @default("pending") // pending, processing, completed, failed
+  questionCount    Int?
+  aiModel          String?
+  aiProvider       String?
+  tokenUsage       Int?
+  error            String?     @db.Text
+  startedAt        DateTime?
+  completedAt      DateTime?
+  metadata         Json?       // Additional extraction metadata
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([status])
+  @@map("question_extractions")
+}
+
+// Answer extraction tracking
+model AnswerExtraction {
+  id               String      @id @default(cuid())
+  submissionId     String      @unique
+  submission       Submission  @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  documentId       String
+  status           String      @default("pending") // pending, processing, completed, failed
+  answerCount      Int?
+  aiModel          String?
+  aiProvider       String?
+  tokenUsage       Int?
+  error            String?     @db.Text
+  startedAt        DateTime?
+  completedAt      DateTime?
+  metadata         Json?       // Additional extraction metadata
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  evidence         Evidence[]  // Relation to evidence
+
+  @@index([status])
+  @@map("answer_extractions")
+}
+
+// Evidence for extracted answers
+model Evidence {
+  id                   String            @id @default(cuid())
+  answerExtractionId   String
+  answerExtraction     AnswerExtraction  @relation(fields: [answerExtractionId], references: [id], onDelete: Cascade)
+  extractedAnswerId    String
+  extractedAnswer      ExtractedAnswer   @relation(fields: [extractedAnswerId], references: [id], onDelete: Cascade)
+  type                 String            // text_match, partial_match, context_clue, page_location
+  content              String?           @db.Text
+  location             Json?             // Page number, character position, etc.
+  confidence           Float?
+  createdAt            DateTime          @default(now())
+
+  @@index([answerExtractionId])
+  @@index([extractedAnswerId])
+  @@map("evidence")
 }
