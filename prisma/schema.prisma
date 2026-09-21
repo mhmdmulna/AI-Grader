@@ -1,0 +1,153 @@
+// Prisma schema for AI Grader
+// This defines the database structure for the application
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Courses (PBO and SISOP)
+model Course {
+  id          String       @id @default(cuid())
+  code        String       @unique // "PBO" or "SISOP"
+  name        String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  assignments Assignment[]
+
+  @@map("courses")
+}
+
+// Assignments within a course
+model Assignment {
+  id          String              @id @default(cuid())
+  courseId    String
+  course      Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?             @db.Text
+  status      String              @default("draft") // draft, active, archived
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  questions   Question[]
+  submissions Submission[]
+  criteria    GradingCriterion[]
+
+  @@index([courseId])
+  @@index([status])
+  @@map("assignments")
+}
+
+// Questions within an assignment
+model Question {
+  id               String              @id @default(cuid())
+  assignmentId     String
+  assignment       Assignment          @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  questionNumber   Int
+  text             String              @db.Text
+  points           Int
+  rubric           String?             @db.Text
+  expectedCriteria String?             @db.Text
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  extractedAnswers ExtractedAnswer[]
+  criteria         GradingCriterion[]
+
+  @@unique([assignmentId, questionNumber])
+  @@index([assignmentId])
+  @@map("questions")
+}
+
+// Grading criteria for questions
+model GradingCriterion {
+  id           String     @id @default(cuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  name         String
+  description  String     @db.Text
+  maxPoints    Int
+  order        Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([assignmentId])
+  @@index([questionId])
+  @@map("grading_criteria")
+}
+
+// Student submissions
+model Submission {
+  id               String            @id @default(cuid())
+  assignmentId     String
+  assignment       Assignment        @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentName      String
+  studentId        String
+  pdfUrl           String
+  status           String            @default("uploaded") // uploaded, processing, extracted, graded, reviewed, finalized, error
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  extractedAnswers ExtractedAnswer[]
+
+  @@index([assignmentId])
+  @@index([status])
+  @@map("submissions")
+}
+
+// Extracted answers from submissions
+model ExtractedAnswer {
+  id           String     @id @default(cuid())
+  submissionId String
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  content      String     @db.Text
+  contentType  String     @default("text") // text, image, mixed
+  pageNumbers  Int[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  grades       Grade[]
+
+  @@index([submissionId])
+  @@index([questionId])
+  @@map("extracted_answers")
+}
+
+// AI-generated and human-reviewed grades
+model Grade {
+  id                String        @id @default(cuid())
+  extractedAnswerId String
+  extractedAnswer   ExtractedAnswer @relation(fields: [extractedAnswerId], references: [id], onDelete: Cascade)
+  score             Float
+  maxScore          Float
+  evidence          String        @db.Text
+  feedback          String        @db.Text
+  status            String        @default("ai_generated") // ai_generated, human_reviewed, finalized
+  aiProvider        String        @default("openai") // openai, claude, gemini
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  reviews           GradeReview[]
+
+  @@index([extractedAnswerId])
+  @@index([status])
+  @@map("grades")
+}
+
+// Human reviews of AI-generated grades
+model GradeReview {
+  id               String   @id @default(cuid())
+  gradeId          String
+  grade            Grade    @relation(fields: [gradeId], references: [id], onDelete: Cascade)
+  reviewerName     String
+  adjustedScore    Float?
+  reviewerComments String?  @db.Text
+  approved         Boolean  @default(false)
+  reviewedAt       DateTime @default(now())
+
+  @@index([gradeId])
+  @@map("grade_reviews")
+}
