@@ -3,6 +3,7 @@
  */
 
 import Link from 'next/link';
+import { DocumentUploadSection } from '@/src/components/DocumentUploadSection';
 
 async function getAssignment(id: string) {
   const res = await fetch(
@@ -103,6 +104,9 @@ export default async function AssignmentPage({
           </div>
         </div>
 
+        {/* Document Upload Section */}
+        <DocumentUploadSection assignmentId={id} documentId={assignment.documentId} />
+
         {/* Questions */}
         <div>
           <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
@@ -182,15 +186,16 @@ export default async function AssignmentPage({
         {/* Future Actions */}
         <div className="mt-8 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
           <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">
-            Future Features
+            ✅ Phase 3 Complete - Document Processing
           </h3>
           <ul className="text-sm text-zinc-600 dark:text-zinc-400 space-y-2">
-            <li>• Upload question document (PDF)</li>
-            <li>• AI-assisted question extraction</li>
-            <li>• Create/edit questions manually</li>
-            <li>• Define grading criteria</li>
-            <li>• Upload student submissions</li>
-            <li>• Batch grading with AI</li>
+            <li>✅ Upload question document (PDF)</li>
+            <li>✅ PDF text extraction</li>
+            <li>✅ Page metadata processing</li>
+            <li>⏳ AI-assisted question extraction (Phase 4)</li>
+            <li>⏳ Student submission upload (Phase 4)</li>
+            <li>⏳ Answer extraction (Phase 4)</li>
+            <li>⏳ Batch grading with AI (Phase 5)</li>
           </ul>
         </div>
       </div>

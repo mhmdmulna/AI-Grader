@@ -5,5 +5,6 @@
 export * from './course';
 export * from './submission';
 export * from './grading';
+export * from './document';
 export * from './api';
 export type { AIProvider, AIConfig, AIRequest, AIResponse } from './ai';

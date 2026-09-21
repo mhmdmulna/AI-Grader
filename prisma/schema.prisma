@@ -24,17 +24,19 @@ model Course {
 
 // Assignments within a course
 model Assignment {
-  id          String              @id @default(cuid())
-  courseId    String
-  course      Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  title       String
-  description String?             @db.Text
-  status      String              @default("draft") // draft, active, archived
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  questions   Question[]
-  submissions Submission[]
-  criteria    GradingCriterion[]
+  id           String              @id @default(cuid())
+  courseId     String
+  course       Course              @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?             @db.Text
+  status       String              @default("draft") // draft, active, archived
+  documentId   String?             @unique // Reference to question document
+  document     Document?           @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  questions    Question[]
+  submissions  Submission[]
+  criteria     GradingCriterion[]
 
   @@index([courseId])
   @@index([status])
@@ -87,7 +89,9 @@ model Submission {
   assignment       Assignment        @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   studentName      String
   studentId        String
-  pdfUrl           String
+  documentId       String?           @unique // Reference to submission document
+  document         Document?         @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  pdfUrl           String            // Legacy field, kept for compatibility
   status           String            @default("uploaded") // uploaded, processing, extracted, graded, reviewed, finalized, error
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -150,4 +154,50 @@ model GradeReview {
 
   @@index([gradeId])
   @@map("grade_reviews")
+}
+
+// Documents (assignment PDFs and submission PDFs)
+model Document {
+  id                String      @id @default(cuid())
+  filename          String      // Stored filename (safe, unique)
+  originalFilename  String      // Original filename from upload
+  mimeType          String
+  fileSize          Int         // Size in bytes
+  storagePath       String      // Relative path in storage
+  documentType      String      // assignment_question, student_submission
+  processingStatus  String      @default("uploaded") // uploaded, processing, processed, failed
+  errorMessage      String?     @db.Text
+  pageCount         Int?
+  hasText           Boolean     @default(false)
+  extractedText     String?     @db.Text
+  textCharCount     Int?
+  metadata          Json?       // Additional PDF metadata
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  assignment        Assignment?
+  submission        Submission?
+  pages             DocumentPage[]
+
+  @@index([documentType])
+  @@index([processingStatus])
+  @@map("documents")
+}
+
+// Individual pages within a document
+model DocumentPage {
+  id            String   @id @default(cuid())
+  documentId    String
+  document      Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  pageNumber    Int
+  hasText       Boolean  @default(false)
+  extractedText String?  @db.Text
+  charCount     Int?
+  width         Float?
+  height        Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([documentId, pageNumber])
+  @@index([documentId])
+  @@map("document_pages")
 }

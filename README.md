@@ -65,6 +65,8 @@ cp .env.example .env
 Edit `.env` and add:
 - `DATABASE_URL`: PostgreSQL connection string
 - `OPENAI_API_KEY`: Your OpenAI API key
+- `MAX_DOCUMENT_SIZE_MB`: Maximum PDF size (default: 20)
+- `STORAGE_PATH`: Document storage location (default: ./storage/documents)
 
 3. Initialize the database:
 
@@ -100,14 +102,21 @@ npm run dev
 - Server-side API routes
 - Basic validation UI
 
-⏳ **Phase 3: Pending Implementation**
-- PDF upload and processing
-- Document analysis with vision
-- Answer extraction
-- AI-assisted grading
-- Human review workflow
-- Batch processing
-- Export functionality
+✅ **Phase 3: Document Processing (COMPLETE)**
+- PDF upload infrastructure
+- File validation and storage
+- PDF text extraction
+- Page metadata extraction
+- Document processing status tracking
+- Assignment document management
+- Server-side document API
+
+⏳ **Phase 4: Pending Implementation**
+- AI-assisted question extraction from PDFs
+- Student submission upload
+- Answer extraction from submissions
+- Vision-based analysis for screenshots
+- Answer normalization
 
 ## Database Schema
 
@@ -116,10 +125,35 @@ Key entities:
 - **Assignment**: Assignment within a course (with status: draft/active/archived)
 - **Question**: Individual questions with rubrics
 - **GradingCriterion**: Specific criteria for evaluating questions
+- **Document**: PDF documents (assignment questions, student submissions)
+- **DocumentPage**: Individual pages with extracted text and metadata
 - **Submission**: Student PDF submissions
 - **ExtractedAnswer**: Parsed answers from PDFs
 - **Grade**: AI-generated scores with evidence
 - **GradeReview**: Human review and adjustments
+
+## Document Processing
+
+The system supports two document types:
+- **Assignment Question Documents**: PDF containing assignment questions
+- **Student Submission Documents**: PDF containing student answers (future)
+
+### Processing Pipeline
+```
+PDF Upload → Validation → Storage → Text Extraction → Page Processing → Processed
+```
+
+### Features
+- Maximum file size: 20MB (configurable)
+- PDF validation and security checks
+- Automatic text extraction
+- Page-level metadata
+- Processing status tracking
+
+### Limitations
+- Text-only extraction (OCR not yet implemented)
+- Scanned/image-only PDFs will have limited text
+- Vision analysis will be added in Phase 4
 
 ## AI Architecture
 
