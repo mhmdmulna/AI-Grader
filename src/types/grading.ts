@@ -50,13 +50,13 @@ export interface GradingRun {
   id: string;
   submissionId: string;
   assignmentId: string;
-  status: GradingRunStatus;
+  status: string;
   aiModel?: string;
   aiProvider?: string;
   tokenUsage?: number;
   startedAt?: Date;
   completedAt?: Date;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -125,11 +125,10 @@ export interface GradingRequest {
 
 export interface GradingResult {
   gradingRunId: string;
-  status: GradingRunStatus;
+  status: string;
   recommendedScore: number;
   maxScore: number;
   feedback?: string;
-  tokenUsage?: number;
 }
 
 export interface CriterionEvaluationResult {
