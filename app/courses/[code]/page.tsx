@@ -32,6 +32,17 @@ async function getCourse(code: string) {
   return res.json();
 }
 
+interface AssignmentWithCount {
+  id: string;
+  title: string;
+  description?: string | null;
+  status: string;
+  _count: {
+    questions: number;
+    submissions: number;
+  };
+}
+
 export default async function CoursePage({
   params,
 }: {
@@ -80,12 +91,12 @@ export default async function CoursePage({
 
           {assignments.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
-              {assignments.map((assignment: any) => (
+              {assignments.map((assignment: AssignmentWithCount) => (
                 <AssignmentCard
                   key={assignment.id}
                   id={assignment.id}
                   title={assignment.title}
-                  description={assignment.description}
+                  description={assignment.description || undefined}
                   status={assignment.status}
                   questionCount={assignment._count.questions}
                   submissionCount={assignment._count.submissions}

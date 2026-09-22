@@ -30,23 +30,35 @@ export function DocumentViewer({ documentId }: DocumentViewerProps) {
   const [showText, setShowText] = useState(false);
 
   useEffect(() => {
-    fetchDocument();
-  }, [documentId]);
+    let isMounted = true;
 
-  const fetchDocument = async () => {
-    try {
-      const response = await fetch(`/api/documents/${documentId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch document');
+    async function load() {
+      try {
+        const response = await fetch(`/api/documents/${documentId}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch document');
+        }
+        const data = await response.json();
+        if (isMounted) {
+          setDocument(data.document);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load document');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-      const data = await response.json();
-      setDocument(data.document);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load document');
-    } finally {
-      setLoading(false);
     }
-  };
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [documentId]);
 
   const loadExtractedText = async () => {
     if (!document || !document.hasText) return;

@@ -18,6 +18,23 @@ async function getAssignment(id: string) {
   return res.json();
 }
 
+interface QuestionItem {
+  id: string;
+  questionNumber: number;
+  content?: string;
+  text?: string;
+  points: number;
+  expectedCriteria?: string | null;
+}
+
+interface CriterionItem {
+  id: string;
+  questionId: string;
+  name: string;
+  description: string;
+  maxPoints: number;
+}
+
 export default async function AssignmentPage({
   params,
 }: {
@@ -26,10 +43,10 @@ export default async function AssignmentPage({
   const { id } = await params;
   const { assignment, questions, criteria } = await getAssignment(id);
 
-  const totalPoints = questions.reduce((sum: number, q: any) => sum + q.points, 0);
+  const totalPoints = questions.reduce((sum: number, q: QuestionItem) => sum + q.points, 0);
 
   // Group criteria by question
-  const criteriaByQuestion = criteria.reduce((acc: any, c: any) => {
+  const criteriaByQuestion = criteria.reduce((acc: Record<string, CriterionItem[]>, c: CriterionItem) => {
     if (!acc[c.questionId]) {
       acc[c.questionId] = [];
     }
@@ -115,7 +132,7 @@ export default async function AssignmentPage({
 
           {questions.length > 0 ? (
             <div className="space-y-4">
-              {questions.map((question: any) => (
+              {questions.map((question: QuestionItem) => (
                 <div
                   key={question.id}
                   className="p-6 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
@@ -130,7 +147,7 @@ export default async function AssignmentPage({
                   </div>
 
                   <p className="text-zinc-700 dark:text-zinc-300 mb-4 whitespace-pre-wrap">
-                    {question.text}
+                    {question.content ?? question.text}
                   </p>
 
                   {question.expectedCriteria && (
@@ -152,7 +169,7 @@ export default async function AssignmentPage({
                           Grading Criteria:
                         </h4>
                         <div className="space-y-2">
-                          {criteriaByQuestion[question.id].map((criterion: any) => (
+                          {criteriaByQuestion[question.id].map((criterion: CriterionItem) => (
                             <div
                               key={criterion.id}
                               className="flex items-start justify-between p-3 rounded bg-zinc-50 dark:bg-zinc-800"

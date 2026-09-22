@@ -17,6 +17,15 @@ async function getCourses() {
   return res.json();
 }
 
+interface CourseWithCount {
+  id: string;
+  code: 'PBO' | 'SISOP';
+  name: string;
+  _count: {
+    assignments: number;
+  };
+}
+
 export default async function CoursesPage() {
   const { courses } = await getCourses();
 
@@ -41,7 +50,7 @@ export default async function CoursesPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {courses.map((course: any) => (
+          {courses.map((course: CourseWithCount) => (
             <CourseCard
               key={course.id}
               code={course.code}

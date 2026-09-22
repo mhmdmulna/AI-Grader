@@ -27,9 +27,6 @@ export class FeedbackGeneratorService {
   ): Promise<FeedbackResult> {
     const { questionGrades, overallScore, maxScore } = input;
 
-    // Check if any grade needs review (low confidence)
-    const needsReview = this.needsReview(questionGrades);
-
     // Build context for feedback generation
     const context = this.buildFeedbackContext(questionGrades);
 

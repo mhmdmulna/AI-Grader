@@ -103,7 +103,7 @@ export function CreateAssignmentForm({ courseCode }: CreateAssignmentFormProps) 
         <select
           id="status"
           value={status}
-          onChange={(e) => setStatus(e.target.value as any)}
+          onChange={(e) => setStatus(e.target.value as 'draft' | 'active' | 'archived')}
           className="w-full px-3 py-2 rounded border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
         >
           <option value="draft">Draft</option>

@@ -43,31 +43,64 @@ export class PDFParserService {
    */
   async extractText(buffer: Buffer): Promise<PDFTextExtractionResult> {
     try {
-      const pdfParse = await getPdfParse();
-      const data = await pdfParse(buffer);
+      const pdfParseModule = await getPdfParse();
+      
+      let fullText = '';
+      let pageCount = 1;
+      const pages: Array<{
+        pageNumber: number;
+        text: string;
+        hasText: boolean;
+        charCount: number;
+      }> = [];
 
-      // Split text by pages (approximate based on form feeds)
-      const fullText = data.text;
-      const pageCount = data.numpages;
+      if (pdfParseModule.PDFParse) {
+        const parser = new pdfParseModule.PDFParse({ data: buffer });
+        const result = await parser.getText();
+        fullText = result.text || '';
+        pageCount = result.total || (result.pages ? result.pages.length : 1);
+        
+        if (result.pages && result.pages.length > 0) {
+          result.pages.forEach((p: { num?: number; text?: string }, idx: number) => {
+            const trimmed = (p.text || '').trim();
+            pages.push({
+              pageNumber: p.num || idx + 1,
+              text: trimmed,
+              hasText: trimmed.length > 0,
+              charCount: trimmed.length,
+            });
+          });
+        }
+        await parser.destroy();
+      } else if (typeof pdfParseModule === 'function') {
+        const data = await pdfParseModule(buffer);
+        fullText = data.text;
+        pageCount = data.numpages;
+        const pageSplits = fullText.split('\f');
+        for (let i = 0; i < pageCount; i++) {
+          const pageText = pageSplits[i] || '';
+          const trimmedText = pageText.trim();
+          pages.push({
+            pageNumber: i + 1,
+            text: trimmedText,
+            hasText: trimmedText.length > 0,
+            charCount: trimmedText.length,
+          });
+        }
+      }
 
-      // Try to split by form feed characters, but fallback if not available
-      const pageSplits = fullText.split('\f');
-      const pages = [];
-
-      for (let i = 0; i < pageCount; i++) {
-        const pageText = pageSplits[i] || '';
-        const trimmedText = pageText.trim();
+      if (pages.length === 0) {
         pages.push({
-          pageNumber: i + 1,
-          text: trimmedText,
-          hasText: trimmedText.length > 0,
-          charCount: trimmedText.length,
+          pageNumber: 1,
+          text: fullText.trim(),
+          hasText: fullText.trim().length > 0,
+          charCount: fullText.trim().length,
         });
       }
 
       return {
         fullText,
-        pageCount,
+        pageCount: pages.length,
         pages,
         totalCharCount: fullText.length,
       };

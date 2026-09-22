@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function Home() {
   return (
     <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black px-4">
@@ -19,12 +21,12 @@ export default function Home() {
           </p>
 
           <div className="mt-8 flex flex-col gap-4 w-full max-w-md">
-            <a
+            <Link
               href="/courses"
               className="flex h-12 w-full items-center justify-center rounded-lg bg-blue-600 px-5 text-white font-medium transition-colors hover:bg-blue-700"
             >
               View Courses
-            </a>
+            </Link>
             <p className="text-sm text-zinc-500 dark:text-zinc-500">
               Phase 5: AI-Assisted Grading (COMPLETE)
             </p>

@@ -81,6 +81,11 @@ export class ExtractionService {
       // Extract questions using AI
       const result = await this.questionExtractor.extractQuestions(textResult.text);
 
+      // Clear previous questions for this assignment if re-extracting (idempotency)
+      await this.prisma.question.deleteMany({
+        where: { assignmentId },
+      });
+
       // Store extracted questions
       const questions = await Promise.all(
         result.questions.map((q) =>
@@ -214,6 +219,11 @@ export class ExtractionService {
         textResult.text,
         submission.assignment.questions
       );
+
+      // Clear previous extracted answers for this submission if re-extracting (idempotency)
+      await this.prisma.extractedAnswer.deleteMany({
+        where: { submissionId },
+      });
 
       // Store extracted answers with evidence
       const answers = await Promise.all(

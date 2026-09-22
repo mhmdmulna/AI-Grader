@@ -17,7 +17,6 @@ import { CriterionGraderService } from './criterion-grader.service';
 import { QuestionGraderService } from './question-grader.service';
 import { FeedbackGeneratorService } from '../feedback';
 import type { GradingResult } from '@/src/types';
-import type { GradingRun } from '@prisma/client';
 
 export class GradingService {
   private prisma: PrismaClient;
@@ -43,6 +42,16 @@ export class GradingService {
     const preconditions = await this.validatePreconditions(submissionId);
     if (!preconditions.valid) {
       throw new Error(preconditions.error!);
+    }
+
+    // Clean up existing grading run if present (idempotency / re-grading support)
+    const existingRun = await this.prisma.gradingRun.findUnique({
+      where: { submissionId },
+    });
+    if (existingRun) {
+      await this.prisma.gradingRun.delete({
+        where: { id: existingRun.id },
+      });
     }
 
     // Create grading run
@@ -120,8 +129,7 @@ export class GradingService {
         questionGrades as any,
         overallScore,
         maxScore,
-        feedback,
-        status as string
+        feedback
       );
 
       // Update grading run
@@ -291,8 +299,7 @@ export class GradingService {
     questionGrades: any[],
     overallScore: number,
     maxScore: number,
-    feedback: any,
-    status: string
+    feedback: any
   ): Promise<void> {
     // Save criterion evaluations
     for (const evaluation of criterionEvaluations) {

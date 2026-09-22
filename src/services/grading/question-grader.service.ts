@@ -9,9 +9,7 @@ import type {
   GradingRun,
   GradingRunStatus,
   CriterionEvaluation,
-  QuestionGrade,
   QuestionGradeResult,
-  CriterionEvaluationResult,
 } from '@/src/types';
 
 export interface QuestionGradingInput {
@@ -37,23 +35,29 @@ export class QuestionGraderService {
       (e) => e.questionId === questionId
     );
 
+    if (questionEvaluations.length === 0) {
+      return {
+        questionGrade: {
+          questionId,
+          recommendedScore: 0,
+          maxScore: questionPoints,
+          criterionEvaluations: [],
+        },
+      };
+    }
+
+    // Calculate total weights to normalize weights
+    const totalWeights = questionEvaluations.reduce((sum, e) => sum + (e.weight || 0), 0) || 1;
+
     // Calculate weighted score
     const totalWeightedScore = questionEvaluations.reduce((sum, eval_) => {
-      // Normalize criterion maxScore to 0-1 scale
-      const normalizedScore = eval_.recommendedScore / eval_.maxScore;
-      return sum + normalizedScore * eval_.weight;
+      // Normalize criterion maxScore to 0-1 scale, avoiding division by zero
+      const normalizedScore = eval_.maxScore > 0 ? (eval_.recommendedScore / eval_.maxScore) : 0;
+      return sum + normalizedScore * (eval_.weight / totalWeights);
     }, 0);
 
     // Scale back to question's max score
     const recommendedScore = totalWeightedScore * questionPoints;
-
-    // Check if any evaluation needs review
-    const requiresReview = questionEvaluations.some((e) => e.requiresReview);
-
-    // Calculate average confidence
-    const avgConfidence =
-      questionEvaluations.reduce((sum, e) => sum + e.confidence, 0) /
-      questionEvaluations.length;
 
     const questionGradeResult: QuestionGradeResult = {
       questionId,
@@ -80,7 +84,8 @@ export class QuestionGraderService {
    */
   gradeAllQuestions(
     gradingRun: GradingRun,
-    criterionEvaluations: CriterionEvaluation[]
+    criterionEvaluations: CriterionEvaluation[],
+    questions?: Array<{ id: string; points: number }>
   ): {
     questionGrades: QuestionGradeResult[];
     overallScore: number;
@@ -98,20 +103,35 @@ export class QuestionGraderService {
       evaluationsByQuestion.set(evaluation.questionId, list);
     }
 
-    // Grade each question
-    for (const [questionId, evaluations] of evaluationsByQuestion) {
-      // Get question points from evaluation
-      const maxScore = evaluations[0].maxScore;
-      const result = this.gradeQuestion({
-        gradingRun,
-        criterionEvaluations: evaluations,
-        questionId,
-        questionPoints: maxScore,
-      });
+    if (questions && questions.length > 0) {
+      for (const q of questions) {
+        const evaluations = evaluationsByQuestion.get(q.id) || [];
+        const result = this.gradeQuestion({
+          gradingRun,
+          criterionEvaluations: evaluations,
+          questionId: q.id,
+          questionPoints: q.points,
+        });
 
-      questionGrades.set(questionId, result.questionGrade);
-      totalRecommendedScore += result.questionGrade.recommendedScore;
-      totalMaxScore += result.questionGrade.maxScore;
+        questionGrades.set(q.id, result.questionGrade);
+        totalRecommendedScore += result.questionGrade.recommendedScore;
+        totalMaxScore += result.questionGrade.maxScore;
+      }
+    } else {
+      // Grade each question from evaluations
+      for (const [questionId, evaluations] of evaluationsByQuestion) {
+        const maxScore = evaluations[0]?.maxScore || 0;
+        const result = this.gradeQuestion({
+          gradingRun,
+          criterionEvaluations: evaluations,
+          questionId,
+          questionPoints: maxScore,
+        });
+
+        questionGrades.set(questionId, result.questionGrade);
+        totalRecommendedScore += result.questionGrade.recommendedScore;
+        totalMaxScore += result.questionGrade.maxScore;
+      }
     }
 
     return {

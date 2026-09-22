@@ -12,7 +12,7 @@
 import { prisma } from '@/src/lib/prisma';
 import { getStorageService } from './document-storage.service';
 import { pdfParserService } from './pdf-parser.service';
-import type { DocumentType, ProcessingStatus, DocumentProcessingResult } from '@/src/types';
+import type { DocumentType, DocumentProcessingResult } from '@/src/types';
 
 export interface UploadDocumentInput {
   buffer: Buffer;
@@ -152,6 +152,11 @@ export class DocumentService {
           width: dim.width,
           height: dim.height,
         };
+      });
+
+      // Clear existing page records if any (idempotency)
+      await prisma.documentPage.deleteMany({
+        where: { documentId },
       });
 
       await prisma.documentPage.createMany({
