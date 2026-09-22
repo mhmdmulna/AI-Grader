@@ -24,16 +24,16 @@ model Course {
 
 // Assignments within a course
 model Assignment {
-  id                 String               @id @default(cuid())
+  id                 String                    @id @default(cuid())
   courseId           String
-  course             Course               @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  course             Course                    @relation(fields: [courseId], references: [id], onDelete: Cascade)
   title              String
-  description        String?              @db.Text
-  status             String               @default("draft") // draft, active, archived
-  documentId         String?              @unique // Reference to question document
-  document           Document?            @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  description        String?                   @db.Text
+  status             String                    @default("draft") // draft, active, archived
+  documentId         String?                   @unique // Reference to question document
+  document           Document?                 @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
   questions          Question[]
   submissions        Submission[]
   criteria           GradingCriterion[]
@@ -46,21 +46,23 @@ model Assignment {
 
 // Questions within an assignment
 model Question {
-  id               String              @id @default(cuid())
-  assignmentId     String
-  assignment       Assignment          @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  questionNumber   Int
-  type             String              @default("text") // text, code, diagram, mixed
-  content          String              @db.Text // Renamed from 'text' to match extraction types
-  points           Int
-  rubric           String?             @db.Text
-  expectedCriteria String?             @db.Text
-  sourcePages      Int[]               @default([]) // Pages where question was found
-  extractedFrom    String?             // "AI_EXTRACTION" or "MANUAL"
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  extractedAnswers ExtractedAnswer[]
-  criteria         GradingCriterion[]
+  id                   String                    @id @default(cuid())
+  assignmentId         String
+  assignment           Assignment                @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  questionNumber       Int
+  type                 String                    @default("text") // text, code, diagram, mixed
+  content              String                    @db.Text // Renamed from 'text' to match extraction types
+  points               Int
+  rubric               String?                   @db.Text
+  expectedCriteria     String?                   @db.Text
+  sourcePages          Int[]                     @default([]) // Pages where question was found
+  extractedFrom        String?                   // "AI_EXTRACTION" or "MANUAL"
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  extractedAnswers     ExtractedAnswer[]
+  criteria             GradingCriterion[]
+  criterionEvaluations CriterionEvaluation[]
+  questionGrades       QuestionGrade[]
 
   @@unique([assignmentId, questionNumber])
   @@index([assignmentId])
@@ -69,17 +71,18 @@ model Question {
 
 // Grading criteria for questions
 model GradingCriterion {
-  id           String     @id @default(cuid())
-  assignmentId String
-  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  questionId   String
-  question     Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  name         String
-  description  String     @db.Text
-  maxPoints    Int
-  order        Int        @default(0)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                   String                    @id @default(cuid())
+  assignmentId         String
+  assignment           Assignment                @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  questionId           String
+  question             Question                  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  name                 String
+  description          String                    @db.Text
+  maxPoints            Int
+  order                Int                       @default(0)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  criterionEvaluations CriterionEvaluation[]
 
   @@index([assignmentId])
   @@index([questionId])
@@ -101,6 +104,7 @@ model Submission {
   updatedAt        DateTime           @updatedAt
   extractedAnswers ExtractedAnswer[]
   answerExtraction AnswerExtraction?
+  gradingRun       GradingRun?
 
   @@index([assignmentId])
   @@index([status])
@@ -109,27 +113,28 @@ model Submission {
 
 // Extracted answers from submissions
 model ExtractedAnswer {
-  id            String              @id @default(cuid())
-  submissionId  String
-  submission    Submission          @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  questionId    String
-  question      Question            @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  content       String              @db.Text
-  contentType   String              @default("text") // text, image, mixed
-  pageNumbers   Int[]
-  confidence    Float?              // Extraction confidence (0-1)
-  sourcePages   Int[]               @default([]) // Duplicate of pageNumbers for API compatibility
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  grades        Grade[]
-  evidence      Evidence[]
+  id                   String                    @id @default(cuid())
+  submissionId         String
+  submission           Submission                @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  questionId           String
+  question             Question                  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  content              String                    @db.Text
+  contentType          String                    @default("text") // text, image, mixed
+  pageNumbers          Int[]
+  confidence           Float?                    // Extraction confidence (0-1)
+  sourcePages          Int[]                     @default([]) // Duplicate of pageNumbers for API compatibility
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  grades               Grade[]
+  evidence             Evidence[]
+  criterionEvaluations CriterionEvaluation[]
 
   @@index([submissionId])
   @@index([questionId])
   @@map("extracted_answers")
 }
 
-// AI-generated and human-reviewed grades
+// AI-generated and human-reviewed grades (deprecated, kept for Phase 4 compatibility)
 model Grade {
   id                String        @id @default(cuid())
   extractedAnswerId String
@@ -271,4 +276,104 @@ model Evidence {
   @@index([answerExtractionId])
   @@index([extractedAnswerId])
   @@map("evidence")
+}
+
+// Grading run (each grading operation is a separate run)
+model GradingRun {
+  id                 String                    @id @default(cuid())
+  submissionId       String                    @unique
+  submission         Submission                @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  assignmentId       String
+  status             String                    @default("pending") // pending, processing, completed, failed, needs_review
+  aiModel            String?
+  aiProvider         String?                   @default("openai")
+  tokenUsage         Int?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  metadata           Json?                     // Grading metadata
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  criterionEvaluations CriterionEvaluation[]
+  questionGrades     QuestionGrade[]
+  gradeSummary       GradeSummary?
+
+  @@index([status])
+  @@index([submissionId])
+  @@index([assignmentId])
+  @@map("grading_runs")
+}
+
+// Criterion evaluation (AI evaluation of answer against a single criterion)
+model CriterionEvaluation {
+  id                 String           @id @default(cuid())
+  gradingRunId       String
+  gradingRun         GradingRun       @relation(fields: [gradingRunId], references: [id], onDelete: Cascade)
+  criterionId        String
+  gradingCriterion   GradingCriterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+  questionId         String
+  question           Question         @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  extractedAnswerId  String
+  extractedAnswer    ExtractedAnswer  @relation(fields: [extractedAnswerId], references: [id], onDelete: Cascade)
+  recommendedScore   Float            // AI recommended score
+  maxScore           Float            // Max points for this criterion
+  weight             Float            // Weight of this criterion (0-1)
+  reasoning          String           @db.Text // AI reasoning
+  evidenceReferences Json?            // Evidence IDs referenced
+  confidence         Float            // AI confidence (0-1)
+  requiresReview     Boolean          @default(false) // true if confidence is low
+  aiModel           String?
+  aiProvider        String?          @default("openai")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  questionGrades    QuestionGrade[]
+
+  @@index([gradingRunId])
+  @@index([criterionId])
+  @@map("criterion_evaluations")
+}
+
+// Question grade (aggregated from criterion evaluations)
+model QuestionGrade {
+  id                   String                @id @default(cuid())
+  gradingRunId         String
+  gradingRun           GradingRun            @relation(fields: [gradingRunId], references: [id], onDelete: Cascade)
+  questionId           String
+  question             Question              @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  recommendedScore     Float                 // AI recommended question score
+  maxScore             Float                 // Total points for this question
+  score                Float?                // Final score (after human review)
+  reviewerName         String?               // Human reviewer name
+  reviewerComment      String?               @db.Text // Human comments
+  reviewedAt           DateTime?             // When human reviewed
+  status               String                @default("ai_recommended") // ai_recommended, reviewed, finalized
+  aiModel             String?
+  aiProvider          String?               @default("openai")
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  criterionEvaluations CriterionEvaluation[]
+
+  @@index([gradingRunId])
+  @@index([questionId])
+  @@map("question_grades")
+}
+
+// Grade summary (overall grading run result)
+model GradeSummary {
+  id               String         @id @default(cuid())
+  gradingRunId     String         @unique
+  gradingRun       GradingRun     @relation(fields: [gradingRunId], references: [id], onDelete: Cascade)
+  recommendedScore Float          // AI recommended total score
+  maxScore         Float          // Total possible points
+  score            Float?         // Final score (after human review)
+  reviewerName     String?        // Human reviewer name
+  reviewerComment  String?        @db.Text
+  reviewedAt       DateTime?      // When human reviewed
+  status           String         @default("ai_recommended") // ai_recommended, reviewed, finalized
+  feedback         String?        @db.Text // AI feedback
+  aiModel         String?
+  aiProvider      String?         @default("openai")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@map("grade_summaries")
 }

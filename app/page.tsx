@@ -26,22 +26,23 @@ export default function Home() {
               View Courses
             </a>
             <p className="text-sm text-zinc-500 dark:text-zinc-500">
-              Phase 4: Answer Extraction (COMPLETE)
+              Phase 5: AI-Assisted Grading (COMPLETE)
             </p>
           </div>
 
           <div className="mt-8 p-6 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 w-full">
             <h2 className="text-xl font-semibold mb-3 text-black dark:text-white">
-              ✅ Phase 4 Complete - Answer Extraction
+              ✅ Phase 5 Complete - AI-Assisted Grading
             </h2>
             <ul className="text-left text-sm text-zinc-600 dark:text-zinc-400 space-y-2">
-              <li>✅ Question extraction from assignment PDFs</li>
-              <li>✅ Answer extraction from student submissions</li>
-              <li>✅ Evidence tracking and confidence scoring</li>
-              <li>✅ Extraction status monitoring</li>
-              <li>✅ Batch processing for multiple submissions</li>
-              <li>✅ Structured data output for Phase 5 grading</li>
-              <li>✅ Text-first AI extraction (OpenAI integration)</li>
+              <li>✅ Criterion-level AI evaluation with rubrics</li>
+              <li>✅ Deterministic score calculation (NOT AI)</li>
+              <li>✅ Human-in-the-loop review workflow</li>
+              <li>✅ Evidence-based reasoning and confidence</li>
+              <li>✅ Question-level score aggregation</li>
+              <li>✅ Grading run tracking with status</li>
+              <li>✅ Feedback generation based on evaluations</li>
+              <li>✅ OpenAI integration (provider abstraction)</li>
             </ul>
           </div>
         </div>

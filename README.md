@@ -120,17 +120,15 @@ npm run dev
 - Batch processing for multiple submissions
 - Structured data output (no grading/evaluation)
 
-⏳ **Phase 5: AI Grading (PENDING)**
-- Multi-provider AI grading (OpenAI, Claude, Gemini)
-- Evidence-based scoring
-- Rubric-aware evaluation
-- Grade justification generation
-
-⏳ **Phase 6: Grade Review & Export (PENDING)**
-- Human review interface
-- Grade adjustment tools
-- Export to Excel/CSV
-- Student feedback generation
+✅ **Phase 5: AI-Assisted Grading (COMPLETE)**
+- Criterion-level AI evaluation with rubrics
+- Deterministic score calculation (not AI)
+- Evidence-based reasoning and confidence tracking
+- Question-level score aggregation
+- Overall score calculation
+- Human-in-the-loop review workflow
+- Grading run tracking with status
+- Feedback generation based on evaluations
 
 ## Database Schema
 
@@ -146,8 +144,12 @@ Key entities:
 - **Evidence**: Evidence supporting answer extraction
 - **Submission**: Student PDF submissions
 - **ExtractedAnswer**: Parsed answers from PDFs with confidence scores
-- **Grade**: AI-generated scores with evidence (Phase 5)
-- **GradeReview**: Human review and adjustments (Phase 6)
+- **GradingRun**: Tracks each grading operation
+- **CriterionEvaluation**: AI evaluation per criterion with recommendedScore, reasoning, confidence
+- **QuestionGrade**: Aggregated question scores with human review support
+- **GradeSummary**: Overall grading result with feedback
+- **Grade**: AI-generated scores with evidence (deprecated)
+- **GradeReview**: Human review and adjustments
 
 ## Document Processing & Extraction
 
