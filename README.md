@@ -21,7 +21,7 @@ This application helps human graders evaluate student assignments through:
 - **Language:** TypeScript
 - **Database:** PostgreSQL + Prisma ORM
 - **Styling:** Tailwind CSS
-- **AI Providers:** OpenAI (primary), Claude & Gemini (future)
+- **AI Providers:** DeepSeek (default), OpenAI (optional)
 
 ## Architecture
 
@@ -46,7 +46,7 @@ src/
 
 - Node.js 20+
 - PostgreSQL database
-- OpenAI API key
+- DeepSeek API key for AI workflows (not required for official-reference tests)
 
 ### Installation
 
@@ -133,6 +133,13 @@ npm run dev
 - Grading run tracking with status
 - Feedback generation based on evaluations
 
+✅ **Official Grading References (Phase 2 Provider Roadmap)**
+- Versioned, lab-assistant-provided answer keys per question
+- Versioned assignment rubrics with assignment-level or question-level criteria
+- Criterion max scores, optional weights, and optional grading instructions
+- Backend validation for ownership, score totals, weights, and malformed criteria
+- Existing AI grading remains unchanged; reference-aware grading is planned for a later phase
+
 ## Database Schema
 
 Key entities:
@@ -140,6 +147,9 @@ Key entities:
 - **Assignment**: Assignment within a course (with status: draft/active/archived)
 - **Question**: Individual questions with rubrics and type (text, code, diagram, mixed)
 - **GradingCriterion**: Specific criteria for evaluating questions
+- **OfficialAnswerKey**: Versioned lab-assistant reference answer for a question
+- **OfficialRubric**: Versioned lab-assistant rubric for an assignment
+- **OfficialRubricCriterion**: Validated assignment-level or question-level rubric criterion
 - **Document**: PDF documents (assignment questions, student submissions)
 - **DocumentPage**: Individual pages with extracted text and metadata
 - **QuestionExtraction**: Status tracking for AI question extraction
@@ -183,7 +193,7 @@ PDF Upload → Validation → Storage → Text Extraction → AI Extraction → 
 - Automatic text extraction
 - Page-level metadata
 - Processing and extraction status tracking
-- Provider abstraction (OpenAI implemented, extensible)
+- Provider abstraction (DeepSeek default, OpenAI optional)
 
 ### Limitations
 - Text-first extraction (vision for Phase 4B)
@@ -195,7 +205,8 @@ PDF Upload → Validation → Storage → Text Extraction → AI Extraction → 
 **Server-Side Only**: All AI API calls happen server-side to protect API keys.
 
 **Provider Support**:
-- ✅ OpenAI (implemented)
+- ✅ DeepSeek (default)
+- ✅ OpenAI (optional)
 - ⏳ Claude (future)
 - ⏳ Gemini (future)
 
@@ -215,6 +226,8 @@ npm run dev          # Start development server
 npm run build        # Build for production
 npm run start        # Start production server
 npm run lint         # Run ESLint
+npm run test:ai      # Run provider-layer tests
+npm run test:phase2  # Run official answer key/rubric tests
 npm run db:generate  # Regenerate Prisma client
 npm run db:push      # Push schema changes to database
 npm run db:seed      # Seed courses (PBO & SISOP)

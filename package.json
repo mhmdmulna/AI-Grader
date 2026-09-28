@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:ai": "tsx --test tests/ai-provider.test.ts",
+    "test:phase2": "tsx --test tests/official-grading-reference.test.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",

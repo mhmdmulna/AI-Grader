@@ -38,6 +38,7 @@ model Assignment {
   submissions        Submission[]
   criteria           GradingCriterion[]
   questionExtraction QuestionExtraction?
+  officialRubrics    OfficialRubric[]
 
   @@index([courseId])
   @@index([status])
@@ -63,6 +64,8 @@ model Question {
   criteria             GradingCriterion[]
   criterionEvaluations CriterionEvaluation[]
   questionGrades       QuestionGrade[]
+  officialAnswerKeys     OfficialAnswerKey[]
+  officialRubricCriteria OfficialRubricCriterion[]
 
   @@unique([assignmentId, questionNumber])
   @@index([assignmentId])
@@ -87,6 +90,66 @@ model GradingCriterion {
   @@index([assignmentId])
   @@index([questionId])
   @@map("grading_criteria")
+}
+
+// Lab-assistant-provided reference answer for a question.
+// These records are not consumed by grading until a later phase.
+model OfficialAnswerKey {
+  id           String   @id @default(cuid())
+  questionId   String
+  question     Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  content      String   @db.Text
+  gradingNotes String?  @db.Text
+  version      Int      @default(1)
+  status       String   @default("draft") // draft, active, archived
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([questionId, version])
+  @@index([questionId, status])
+  @@map("official_answer_keys")
+}
+
+// Versioned, lab-assistant-provided rubric for an assignment.
+// Criteria may apply to the whole assignment or to individual questions.
+model OfficialRubric {
+  id           String                    @id @default(cuid())
+  assignmentId String
+  assignment   Assignment                @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?                   @db.Text
+  version      Int                       @default(1)
+  status       String                    @default("draft") // draft, active, archived
+  createdBy    String
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  criteria     OfficialRubricCriterion[]
+
+  @@unique([assignmentId, version])
+  @@index([assignmentId, status])
+  @@map("official_rubrics")
+}
+
+model OfficialRubricCriterion {
+  id                  String         @id @default(cuid())
+  rubricId            String
+  rubric              OfficialRubric @relation(fields: [rubricId], references: [id], onDelete: Cascade)
+  questionId          String?
+  question            Question?      @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  name                String
+  description         String         @db.Text
+  maxPoints           Float
+  weight              Float?
+  gradingInstructions String?        @db.Text
+  order               Int            @default(0)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@unique([rubricId, order])
+  @@index([rubricId])
+  @@index([questionId])
+  @@map("official_rubric_criteria")
 }
 
 // Student submissions
