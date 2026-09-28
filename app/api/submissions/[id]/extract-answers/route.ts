@@ -5,7 +5,7 @@ import { AIServiceError, getAIErrorResponse } from '@/src/services/ai';
 
 /**
  * POST /api/submissions/[id]/extract-answers
- * Extract answers from submission document using AI
+ * Extract, validate, map, and persist structured answers from a submission document.
  */
 export async function POST(
   request: NextRequest,
@@ -59,7 +59,9 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: `Successfully extracted ${result.answerCount} answers`,
+      message: result.qualityStatus === 'complete'
+        ? `Successfully extracted ${result.answerCount} answers`
+        : `Extracted ${result.answerCount} answers; review extraction diagnostics`,
       data: result,
     });
   } catch (error) {
@@ -84,7 +86,7 @@ export async function POST(
 
 /**
  * GET /api/submissions/[id]/extract-answers
- * Get answer extraction status
+ * Get extraction status, persisted answers, and structured diagnostics metadata.
  */
 export async function GET(
   request: NextRequest,

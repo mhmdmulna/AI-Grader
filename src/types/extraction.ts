@@ -32,11 +32,40 @@ export interface QuestionExtractionResult {
 }
 
 // Answer extraction types
+export type AnswerExtractionQualityStatus = 'complete' | 'needs_review';
+
+export type ExtractedAnswerQuality = 'high' | 'medium' | 'low' | 'unknown';
+
+export type AnswerExtractionDiagnosticCode =
+  | 'MISSING_ANSWER'
+  | 'DUPLICATE_ANSWER'
+  | 'UNMAPPED_ANSWER'
+  | 'EMPTY_ANSWER'
+  | 'AMBIGUOUS_ANSWER'
+  | 'MALFORMED_ANSWER'
+  | 'INVALID_CONFIDENCE'
+  | 'MISSING_CONFIDENCE'
+  | 'INVALID_SOURCE_PAGES'
+  | 'LOW_CONFIDENCE';
+
+export interface AnswerExtractionDiagnostic {
+  code: AnswerExtractionDiagnosticCode;
+  severity: 'error' | 'warning';
+  message: string;
+  questionId?: string;
+  questionNumber?: number;
+  rawAnswerIndex?: number;
+}
+
 export interface ExtractedAnswerData {
+  assignmentId: string;
   questionId: string;
+  questionNumber: number;
   content: string;
   sourcePages: number[];
   confidence?: number;
+  quality: ExtractedAnswerQuality;
+  warnings: AnswerExtractionDiagnostic[];
   evidence: EvidenceData[];
 }
 
@@ -53,6 +82,18 @@ export interface EvidenceData {
 
 export interface AnswerExtractionResult {
   answers: ExtractedAnswerData[];
+  diagnostics: AnswerExtractionDiagnostic[];
+  qualityStatus: AnswerExtractionQualityStatus;
+  summary: {
+    rawAnswerCount: number;
+    gradableQuestionCount: number;
+    mappedAnswerCount: number;
+    missingAnswerCount: number;
+    duplicateAnswerCount: number;
+    unmappedAnswerCount: number;
+    lowConfidenceAnswerCount: number;
+    malformedAnswerCount: number;
+  };
   tokenUsage?: number;
   model: string;
   provider: string;
@@ -79,4 +120,9 @@ export interface AIAnswerExtractionResponse {
     sourcePages: number[];
     confidence?: number;
   }>;
+}
+
+/** Minimal provider-response envelope; individual answer records are validated separately. */
+export interface AIAnswerExtractionEnvelope {
+  answers: unknown[];
 }

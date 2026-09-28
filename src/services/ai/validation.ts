@@ -1,4 +1,5 @@
 import type {
+  AIAnswerExtractionEnvelope,
   AIAnswerExtractionResponse,
   AIQuestionExtractionResponse,
 } from '@/src/types';
@@ -62,6 +63,12 @@ export function isAnswerExtractionResponse(
     (answer.confidence === undefined ||
       (isFiniteNumber(answer.confidence) && answer.confidence >= 0 && answer.confidence <= 1))
   );
+}
+
+export function isAnswerExtractionEnvelope(
+  value: unknown
+): value is AIAnswerExtractionEnvelope {
+  return isRecord(value) && Array.isArray(value.answers);
 }
 
 export function isCriterionEvaluationResponse(

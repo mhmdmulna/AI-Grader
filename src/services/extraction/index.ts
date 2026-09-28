@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { QuestionExtractorService } from './question-extractor.service';
 import { AnswerExtractorService } from './answer-extractor.service';
 import { DocumentService } from '../document';
-import { ExtractionStatus } from '@/src/types';
+import { ExtractionStatus, type AnswerExtractionResult } from '@/src/types';
 
 export class ExtractionService {
   private prisma: PrismaClient;
@@ -151,6 +151,10 @@ export class ExtractionService {
     extractionId: string;
     status: ExtractionStatus;
     answerCount: number;
+    qualityStatus: AnswerExtractionResult['qualityStatus'];
+    answers: AnswerExtractionResult['answers'];
+    diagnostics: AnswerExtractionResult['diagnostics'];
+    summary: AnswerExtractionResult['summary'];
   }> {
     // Get submission with document and assignment questions
     const submission = await this.prisma.submission.findUnique({
@@ -223,15 +227,27 @@ export class ExtractionService {
         submission.assignment.questions
       );
 
-      // Clear previous extracted answers for this submission if re-extracting (idempotency)
-      await this.prisma.extractedAnswer.deleteMany({
-        where: { submissionId },
-      });
+      const extractionId = extraction.id;
+      const serializedDiagnostics = result.diagnostics.map((item) => ({
+        code: item.code,
+        severity: item.severity,
+        message: item.message,
+        ...(item.questionId === undefined ? {} : { questionId: item.questionId }),
+        ...(item.questionNumber === undefined ? {} : { questionNumber: item.questionNumber }),
+        ...(item.rawAnswerIndex === undefined ? {} : { rawAnswerIndex: item.rawAnswerIndex }),
+      }));
+      const coverageRate = result.summary.gradableQuestionCount === 0
+        ? 100
+        : ((result.summary.gradableQuestionCount - result.summary.missingAnswerCount) /
+          result.summary.gradableQuestionCount) * 100;
 
-      // Store extracted answers with evidence
-      const answers = await Promise.all(
-        result.answers.map(async (a) => {
-          const answer = await this.prisma.extractedAnswer.create({
+      // Atomically replace prior answers, evidence, and extraction metadata.
+      const answers = await this.prisma.$transaction(async (tx) => {
+        await tx.extractedAnswer.deleteMany({ where: { submissionId } });
+
+        const storedAnswers = [];
+        for (const a of result.answers) {
+          const answer = await tx.extractedAnswer.create({
             data: {
               submissionId,
               questionId: a.questionId,
@@ -242,11 +258,10 @@ export class ExtractionService {
             },
           });
 
-          // Store evidence
           if (a.evidence.length > 0) {
-            await this.prisma.evidence.createMany({
+            await tx.evidence.createMany({
               data: a.evidence.map((e) => ({
-                answerExtractionId: extraction!.id,
+                answerExtractionId: extractionId,
                 extractedAnswerId: answer.id,
                 type: e.type,
                 content: e.content,
@@ -255,36 +270,52 @@ export class ExtractionService {
               })),
             });
           }
+          storedAnswers.push(answer);
+        }
 
-          return answer;
-        })
-      );
-
-      // Mark extraction as completed
-      await this.prisma.answerExtraction.update({
-        where: { id: extraction.id },
-        data: {
-          status: ExtractionStatus.COMPLETED,
-          completedAt: new Date(),
-          answerCount: answers.length,
-          aiModel: result.model,
-          aiProvider: result.provider,
-          tokenUsage: result.tokenUsage,
-          metadata: {
-            totalPages: submission.document.pageCount || 0,
-            extractedAnswers: answers.length,
-            expectedQuestions: submission.assignment.questions.length,
-            coverageRate: (answers.length / submission.assignment.questions.length) * 100,
-            promptVersion: result.promptVersion,
-            requestLatencyMs: result.requestLatencyMs,
+        await tx.answerExtraction.update({
+          where: { id: extractionId },
+          data: {
+            status: ExtractionStatus.COMPLETED,
+            completedAt: new Date(),
+            answerCount: storedAnswers.length,
+            aiModel: result.model,
+            aiProvider: result.provider,
+            tokenUsage: result.tokenUsage,
+            metadata: {
+              contractVersion: 'structured-answer-extraction-v2',
+              qualityStatus: result.qualityStatus,
+              totalPages: submission.document!.pageCount || 0,
+              extractedAnswers: storedAnswers.length,
+              expectedQuestions: result.summary.gradableQuestionCount,
+              coverageRate,
+              summary: result.summary,
+              diagnostics: serializedDiagnostics,
+              answers: result.answers.map((answer) => ({
+                assignmentId: answer.assignmentId,
+                questionId: answer.questionId,
+                questionNumber: answer.questionNumber,
+                quality: answer.quality,
+                warningCodes: answer.warnings.map((warning) => warning.code),
+                sourcePages: answer.sourcePages,
+              })),
+              promptVersion: result.promptVersion,
+              requestLatencyMs: result.requestLatencyMs,
+            },
           },
-        },
+        });
+
+        return storedAnswers;
       });
 
       return {
-        extractionId: extraction.id,
+        extractionId,
         status: ExtractionStatus.COMPLETED,
         answerCount: answers.length,
+        qualityStatus: result.qualityStatus,
+        answers: result.answers,
+        diagnostics: result.diagnostics,
+        summary: result.summary,
       };
     } catch (error) {
       // Mark extraction as failed
@@ -330,6 +361,9 @@ export class ExtractionService {
               include: {
                 question: true,
                 evidence: true,
+              },
+              orderBy: {
+                question: { questionNumber: 'asc' },
               },
             },
           },

@@ -147,6 +147,22 @@ npm run dev
 - `GET /api/assignments/{id}/official-references/readiness`
 - Readiness is not yet connected to AI grading; rubric-based grading remains a later phase
 
+✅ **Structured Student Answer Extraction (Phase 4 Provider Roadmap)**
+- Maps AI-extracted student responses to existing assignment question IDs and numbers
+- Reports missing, duplicate, unmapped, ambiguous, malformed, and low-confidence results
+- Persists one deterministic answer per mapped question with confidence, source pages, and evidence
+- Stores extraction summaries and diagnostics in the existing `AnswerExtraction.metadata` JSON field
+- `POST /api/submissions/{id}/extract-answers` returns structured answers and diagnostics
+- Extraction remains independent of official-reference readiness and does not grade responses
+
+### Structured Answer Extraction Contract
+
+Each mapped answer contains `assignmentId`, `questionId`, `questionNumber`, `content`,
+`sourcePages`, optional `confidence`, a quality classification, and answer-specific warnings.
+The extraction result also contains a `qualityStatus`, assignment-wide diagnostics, and counts
+for mapped, missing, duplicate, unmapped, low-confidence, and malformed answers. Records that
+cannot map to an assignment question are reported but are not persisted as `ExtractedAnswer` rows.
+
 ## Database Schema
 
 Key entities:
@@ -236,6 +252,7 @@ npm run lint         # Run ESLint
 npm run test:ai      # Run provider-layer tests
 npm run test:phase2  # Run official answer key/rubric tests
 npm run test:phase3  # Run official-reference readiness tests
+npm run test:phase4  # Run structured student-answer extraction tests
 npm run db:generate  # Regenerate Prisma client
 npm run db:push      # Push schema changes to database
 npm run db:seed      # Seed courses (PBO & SISOP)
