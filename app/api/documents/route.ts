@@ -60,12 +60,19 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Document upload error:', error);
-    
+
     const errorMessage = error instanceof Error ? error.message : 'Failed to upload document';
-    
+
+    // Validation errors from DocumentService (wrong type, too large, invalid PDF)
+    // are distinguishable from unexpected server errors by their message content.
+    const isValidationError =
+      errorMessage.includes('Only PDF') ||
+      errorMessage.includes('File size exceeds') ||
+      errorMessage.includes('Invalid or corrupted PDF');
+
     return NextResponse.json(
       { error: errorMessage },
-      { status: 500 }
+      { status: isValidationError ? 400 : 500 }
     );
   }
 }

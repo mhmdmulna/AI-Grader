@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
 import { ExtractionService } from '@/src/services/extraction';
+import { AIServiceError, getAIErrorResponse } from '@/src/services/ai';
 
 /**
  * POST /api/submissions/[id]/extract-answers
@@ -62,7 +63,15 @@ export async function POST(
       data: result,
     });
   } catch (error) {
-    console.error('Answer extraction error:', error);
+    if (error instanceof AIServiceError) {
+      console.error('Answer extraction error:', error.toSafeLog());
+      const response = getAIErrorResponse(error);
+      return NextResponse.json(response.body, { status: response.status });
+    }
+
+    console.error('Answer extraction error:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
     return NextResponse.json(
       {
         error: 'Failed to extract answers',

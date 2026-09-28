@@ -16,6 +16,7 @@ import { PrismaClient } from '@prisma/client';
 import { CriterionGraderService } from './criterion-grader.service';
 import { QuestionGraderService } from './question-grader.service';
 import { FeedbackGeneratorService } from '../feedback';
+import { getAIService, type IAIService } from '../ai';
 import type { GradingResult } from '@/src/types';
 
 export class GradingService {
@@ -23,12 +24,14 @@ export class GradingService {
   private criterionGrader: CriterionGraderService;
   private questionGrader: QuestionGraderService;
   private feedbackGenerator: FeedbackGeneratorService;
+  private aiService: IAIService;
 
   constructor(prisma: PrismaClient) {
     this.prisma = prisma;
     this.criterionGrader = new CriterionGraderService();
     this.questionGrader = new QuestionGraderService();
     this.feedbackGenerator = new FeedbackGeneratorService();
+    this.aiService = getAIService();
   }
 
   /**
@@ -61,7 +64,7 @@ export class GradingService {
         assignmentId: preconditions.assignmentId!,
         status: 'processing',
         startedAt: new Date(),
-        aiProvider: 'openai',
+        aiProvider: this.aiService.provider,
       },
     });
 
@@ -96,19 +99,22 @@ export class GradingService {
         throw new Error('Submission not found');
       }
 
-      // Evaluate each criterion for each question
-      // Type cast to any to bypass type checking issues
+      // Evaluate each criterion for each question.
+      // Only creates evaluations for questions with extracted answers.
+      // Missing-answer questions are handled by gradeAllQuestions via the questions list.
       const criterionEvaluations = await this.evaluateAllCriteria(
         submission.assignment.questions as any,
         submission.extractedAnswers as any
       );
 
-      // Grade all questions (deterministic aggregation)
-      // Type cast to any to bypass type checking issues
+      // Grade all questions (deterministic aggregation).
+      // Pass the full questions list so gradeAllQuestions can generate
+      // zero-score QuestionGrades for questions with no extracted answer.
       const { questionGrades, overallScore, maxScore } =
         this.questionGrader.gradeAllQuestions(
           gradingRun as any,
-          criterionEvaluations as any
+          criterionEvaluations as any,
+          submission.assignment.questions.map((q: any) => ({ id: q.id, points: q.points }))
         );
 
       // Generate feedback
@@ -118,6 +124,23 @@ export class GradingService {
         overallScore,
         maxScore,
       });
+
+      const aiProvider =
+        criterionEvaluations[0]?.aiProvider || feedback.aiProvider || this.aiService.provider;
+      const aiModel =
+        criterionEvaluations[0]?.aiModel || feedback.aiModel || this.aiService.model;
+      const tokenUsage = criterionEvaluations.reduce(
+        (total, evaluation) => total + (evaluation.tokenUsage || 0),
+        feedback.tokenUsage || 0
+      );
+      const requestLatencyMs = criterionEvaluations.reduce(
+        (total, evaluation) => total + (evaluation.requestLatencyMs || 0),
+        feedback.requestLatencyMs || 0
+      );
+      const promptVersions = Array.from(new Set([
+        ...criterionEvaluations.map((evaluation) => evaluation.promptVersion),
+        feedback.promptVersion,
+      ].filter(Boolean)));
 
       // Determine status
       const status = this.questionGrader.getStatus(questionGrades);
@@ -129,7 +152,9 @@ export class GradingService {
         questionGrades as any,
         overallScore,
         maxScore,
-        feedback
+        feedback,
+        aiProvider,
+        aiModel
       );
 
       // Update grading run
@@ -138,13 +163,16 @@ export class GradingService {
         data: {
           status: status as string,
           completedAt: new Date(),
-          aiModel: 'gpt-4',
-          tokenUsage: 0, // TODO: track actual token usage
+          aiModel,
+          aiProvider,
+          tokenUsage,
           metadata: {
             questionCount: questionGrades.length,
             criterionCount: criterionEvaluations.length,
             overallScore,
             maxScore,
+            promptVersions,
+            requestLatencyMs,
           },
         },
       });
@@ -243,20 +271,11 @@ export class GradingService {
       );
 
       if (!answer) {
-        // Missing answer - mark as zero score
-        evaluations.push({
-          id: '',
-          gradingRunId: '',
-          criterionId: '',
-          questionId: question.id,
-          extractedAnswerId: '',
-          recommendedScore: 0,
-          maxScore: question.points,
-          weight: 1,
-          reasoning: 'No answer provided for this question',
-          confidence: 0,
-          requiresReview: false,
-        });
+        // Missing answer — skip criterion evaluations for this question.
+        // gradeAllQuestions receives the full questions list and will generate
+        // a 0-score QuestionGrade for this question automatically.
+        // DO NOT push a synthetic evaluation with empty criterionId/extractedAnswerId
+        // as that will fail the database FK constraint.
         continue;
       }
 
@@ -283,6 +302,11 @@ export class GradingService {
           reasoning: evaluation.reasoning,
           confidence: evaluation.confidence,
           requiresReview: evaluation.requiresReview,
+          aiModel: evaluation.aiModel,
+          aiProvider: evaluation.aiProvider,
+          promptVersion: evaluation.promptVersion,
+          tokenUsage: evaluation.tokenUsage,
+          requestLatencyMs: evaluation.requestLatencyMs,
         });
       }
     }
@@ -299,10 +323,17 @@ export class GradingService {
     questionGrades: any[],
     overallScore: number,
     maxScore: number,
-    feedback: any
+    feedback: any,
+    aiProvider: string,
+    aiModel: string
   ): Promise<void> {
-    // Save criterion evaluations
+    // Save criterion evaluations.
+    // Skip any evaluation that lacks a valid criterionId or extractedAnswerId
+    // (e.g. synthesised zero-score placeholders — those should not be in DB).
     for (const evaluation of criterionEvaluations) {
+      if (!evaluation.criterionId || !evaluation.extractedAnswerId) {
+        continue;
+      }
       await this.prisma.criterionEvaluation.create({
         data: {
           gradingRunId,
@@ -315,8 +346,8 @@ export class GradingService {
           reasoning: evaluation.reasoning,
           confidence: evaluation.confidence,
           requiresReview: evaluation.requiresReview,
-          aiModel: evaluation.aiModel || 'gpt-4',
-          aiProvider: evaluation.aiProvider || 'openai',
+          aiModel: evaluation.aiModel || aiModel,
+          aiProvider: evaluation.aiProvider || aiProvider,
         },
       });
     }
@@ -330,8 +361,8 @@ export class GradingService {
           recommendedScore: qGrade.recommendedScore,
           maxScore: qGrade.maxScore,
           status: 'ai_recommended',
-          aiModel: qGrade.aiModel || 'gpt-4',
-          aiProvider: qGrade.aiProvider || 'openai',
+          aiModel: qGrade.aiModel || aiModel,
+          aiProvider: qGrade.aiProvider || aiProvider,
         },
       });
     }
@@ -342,10 +373,15 @@ export class GradingService {
         gradingRunId,
         recommendedScore: overallScore,
         maxScore,
-        feedback: feedback ? JSON.stringify(feedback) : null,
+        feedback: feedback ? JSON.stringify({
+          strength: feedback.strength,
+          improvement: feedback.improvement,
+          evidenceReferences: feedback.evidenceReferences,
+          suggestions: feedback.suggestions,
+        }) : null,
         status: 'ai_recommended',
-        aiModel: 'gpt-4',
-        aiProvider: 'openai',
+        aiModel,
+        aiProvider,
       },
     });
   }

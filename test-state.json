@@ -1,0 +1,128 @@
+{
+  "S": {
+    "assignmentId": "cmulacs7u0001r15jpm2rizm8",
+    "assignmentDocId": "cmulacsv10002r15jh08zcth0",
+    "questionIds": [
+      "cmulacxtv000dr15j0nr2k565",
+      "cmulacyfl000lr15jjhmzatao",
+      "cmulacygx000tr15jpfi9iaf7"
+    ],
+    "criterionIds": [
+      "cmulacyd8000fr15j9813vyjh",
+      "cmulacyer000hr15jvxe77tn2",
+      "cmulacyf4000jr15j0l94bfde",
+      "cmulacyfx000nr15j43yxif0u",
+      "cmulacyg8000pr15jdjrr4jxa",
+      "cmulacygl000rr15jaypmfrj5",
+      "cmulacyh8000vr15jtogo2mch",
+      "cmulacyhk000xr15jkuhn6bzg",
+      "cmulacyhw000zr15j2hwj124n"
+    ],
+    "subs": {
+      "good": {
+        "id": "cmulaczzf0016r15j2i1bh9iu",
+        "docId": "cmulacz1g0010r15jnei1z313"
+      },
+      "partial": {
+        "id": "cmulad0g8001br15jekqmjq1x",
+        "docId": "cmulaczzu0017r15j9wk3b2fy"
+      },
+      "poor": {
+        "id": "cmulad0w2001gr15jvtjwalkx",
+        "docId": "cmulad0gk001cr15j1qr892j9"
+      },
+      "missing": {
+        "id": "cmulad1ci001lr15jamtlbmc9",
+        "docId": "cmulad0wi001hr15jp0clztly"
+      },
+      "injection": {
+        "id": "cmulad1sp001qr15j45n3hoy9",
+        "docId": "cmulad1cs001mr15joq4yvdy4"
+      }
+    },
+    "runs": {}
+  },
+  "PASS": 41,
+  "FAIL": 12,
+  "WARN": 7,
+  "FAILURES": [
+    {
+      "label": "Extract answers (good)",
+      "detail": "status=500 — {\"error\":\"Failed to extract answers\",\"details\":\"401 Incorrect API key provided: your-ope************"
+    },
+    {
+      "label": "Extract answers (partial)",
+      "detail": "status=500 — {\"error\":\"Failed to extract answers\",\"details\":\"401 Incorrect API key provided: your-ope************"
+    },
+    {
+      "label": "Extract answers (poor)",
+      "detail": "status=500 — {\"error\":\"Failed to extract answers\",\"details\":\"401 Incorrect API key provided: your-ope************"
+    },
+    {
+      "label": "Extract answers (missing)",
+      "detail": "status=500 — {\"error\":\"Failed to extract answers\",\"details\":\"401 Incorrect API key provided: your-ope************"
+    },
+    {
+      "label": "Extract answers (injection)",
+      "detail": "status=500 — {\"error\":\"Failed to extract answers\",\"details\":\"401 Incorrect API key provided: your-ope************"
+    },
+    {
+      "label": "Answer extraction idempotent",
+      "detail": ""
+    },
+    {
+      "label": "Grade submission (good)",
+      "detail": "status=500 — {\"error\":\"Failed to start grading\",\"details\":\"Extraction not completed. Status: failed\"}"
+    },
+    {
+      "label": "Grade submission (partial)",
+      "detail": "status=500 — {\"error\":\"Failed to start grading\",\"details\":\"Extraction not completed. Status: failed\"}"
+    },
+    {
+      "label": "Grade submission (poor)",
+      "detail": "status=500 — {\"error\":\"Failed to start grading\",\"details\":\"Extraction not completed. Status: failed\"}"
+    },
+    {
+      "label": "Grade submission (missing)",
+      "detail": "status=500 — {\"error\":\"Failed to start grading\",\"details\":\"Extraction not completed. Status: failed\"}"
+    },
+    {
+      "label": "Grade submission (injection)",
+      "detail": "status=500 — {\"error\":\"Failed to start grading\",\"details\":\"Extraction not completed. Status: failed\"}"
+    },
+    {
+      "label": "Grading re-run",
+      "detail": "500"
+    }
+  ],
+  "WARNINGS": [
+    {
+      "label": "Malicious filename test",
+      "detail": "status=201"
+    },
+    {
+      "label": "POST extract-questions",
+      "detail": "status=500 — {\"error\":\"Failed to extract questions\",\"details\":\"401 Incorrect API key provided: your-ope**********"
+    },
+    {
+      "label": "GET grade (good)",
+      "detail": "404"
+    },
+    {
+      "label": "GET grade (partial)",
+      "detail": "404"
+    },
+    {
+      "label": "GET grade (poor)",
+      "detail": "404"
+    },
+    {
+      "label": "GET grade (missing)",
+      "detail": "404"
+    },
+    {
+      "label": "GET grade (injection)",
+      "detail": "404"
+    }
+  ]
+}

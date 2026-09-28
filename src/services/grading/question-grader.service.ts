@@ -72,8 +72,13 @@ export class QuestionGraderService {
         confidence: e.confidence,
         requiresReview: e.requiresReview,
         aiModel: e.aiModel,
+        aiProvider: e.aiProvider,
+        promptVersion: e.promptVersion,
+        tokenUsage: e.tokenUsage,
+        requestLatencyMs: e.requestLatencyMs,
       })),
       aiModel: questionEvaluations[0]?.aiModel,
+      aiProvider: questionEvaluations[0]?.aiProvider,
     };
 
     return { questionGrade: questionGradeResult };

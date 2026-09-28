@@ -1,20 +1,18 @@
 /**
  * PDF parser service
- * 
+ *
  * Handles PDF text extraction and metadata extraction.
+ *
+ * Uses pdfjs-dist directly in Node.js mode to avoid the pdf-parse v2
+ * fake-worker path resolution bug in Next.js/Turbopack.
+ *
+ * The worker is loaded from a file:// URL so it runs in a real
+ * Worker thread and resolves correctly on all platforms.
  */
 
 import { PDFDocument } from 'pdf-lib';
-
-// Dynamic import for pdf-parse
-let pdfParseModule: any = null;
-
-async function getPdfParse() {
-  if (!pdfParseModule) {
-    pdfParseModule = await import('pdf-parse');
-  }
-  return pdfParseModule;
-}
+import path from 'path';
+import { pathToFileURL } from 'url';
 
 export interface PDFMetadata {
   pageCount: number;
@@ -37,80 +35,81 @@ export interface PDFTextExtractionResult {
   totalCharCount: number;
 }
 
+/**
+ * Build the file:// URL for the pdfjs worker.
+ * We resolve it relative to node_modules so it works regardless
+ * of where the service is imported from within the project.
+ */
+function getWorkerURL(): string {
+  const workerPath = path.join(
+    process.cwd(),
+    'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
+  );
+  return pathToFileURL(workerPath).href;
+}
+
 export class PDFParserService {
   /**
-   * Extract text from PDF buffer
+   * Extract text from PDF buffer using pdfjs-dist in Node.js mode.
+   *
+   * The workerSrc is set to a file:// URL so pdfjs-dist spawns the worker
+   * from the correct location instead of trying to find it inside the
+   * Next.js build output (which fails in Turbopack dev mode).
    */
   async extractText(buffer: Buffer): Promise<PDFTextExtractionResult> {
     try {
-      const pdfParseModule = await getPdfParse();
-      
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+
+      // Set workerSrc to an absolute file:// URL — required on Windows and
+      // for pdfjs-dist v5 which no longer accepts bare paths.
+      pdfjs.GlobalWorkerOptions.workerSrc = getWorkerURL();
+
+      const uint8 = new Uint8Array(buffer);
+      const loadingTask = pdfjs.getDocument({ data: uint8, verbosity: 0 });
+      const doc = await loadingTask.promise;
+
+      const pageCount = doc.numPages;
+      const pages: PDFTextExtractionResult['pages'] = [];
       let fullText = '';
-      let pageCount = 1;
-      const pages: Array<{
-        pageNumber: number;
-        text: string;
-        hasText: boolean;
-        charCount: number;
-      }> = [];
 
-      if (pdfParseModule.PDFParse) {
-        const parser = new pdfParseModule.PDFParse({ data: buffer });
-        const result = await parser.getText();
-        fullText = result.text || '';
-        pageCount = result.total || (result.pages ? result.pages.length : 1);
-        
-        if (result.pages && result.pages.length > 0) {
-          result.pages.forEach((p: { num?: number; text?: string }, idx: number) => {
-            const trimmed = (p.text || '').trim();
-            pages.push({
-              pageNumber: p.num || idx + 1,
-              text: trimmed,
-              hasText: trimmed.length > 0,
-              charCount: trimmed.length,
-            });
-          });
-        }
-        await parser.destroy();
-      } else if (typeof pdfParseModule === 'function') {
-        const data = await pdfParseModule(buffer);
-        fullText = data.text;
-        pageCount = data.numpages;
-        const pageSplits = fullText.split('\f');
-        for (let i = 0; i < pageCount; i++) {
-          const pageText = pageSplits[i] || '';
-          const trimmedText = pageText.trim();
-          pages.push({
-            pageNumber: i + 1,
-            text: trimmedText,
-            hasText: trimmedText.length > 0,
-            charCount: trimmedText.length,
-          });
-        }
-      }
+      for (let i = 1; i <= pageCount; i++) {
+        const page = await doc.getPage(i);
+        const content = await page.getTextContent();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pageText = (content.items as any[])
+          .filter((item) => typeof item.str === 'string')
+          .map((item) => item.str as string)
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim();
 
-      if (pages.length === 0) {
+        fullText += (fullText ? '\n' : '') + pageText;
         pages.push({
-          pageNumber: 1,
-          text: fullText.trim(),
-          hasText: fullText.trim().length > 0,
-          charCount: fullText.trim().length,
+          pageNumber: i,
+          text: pageText,
+          hasText: pageText.length > 0,
+          charCount: pageText.length,
         });
       }
 
+      await doc.destroy();
+
       return {
         fullText,
-        pageCount: pages.length,
+        pageCount,
         pages,
         totalCharCount: fullText.length,
       };
     } catch (error) {
-      throw new Error(`PDF text extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `PDF text extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
   /**
-   * Extract PDF metadata
+   * Extract PDF metadata using pdf-lib (no worker dependency).
    */
   async extractMetadata(buffer: Buffer): Promise<PDFMetadata> {
     try {
@@ -132,12 +131,14 @@ export class PDFParserService {
         creationDate: creationDate || undefined,
       };
     } catch (error) {
-      throw new Error(`PDF metadata extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `PDF metadata extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
   /**
-   * Get page dimensions
+   * Get page dimensions using pdf-lib.
    */
   async getPageDimensions(buffer: Buffer): Promise<Array<{ width: number; height: number }>> {
     try {
@@ -152,12 +153,14 @@ export class PDFParserService {
 
       return dimensions;
     } catch (error) {
-      throw new Error(`Page dimension extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Page dimension extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
   /**
-   * Validate if buffer is a valid PDF
+   * Validate if buffer is a valid PDF using pdf-lib.
    */
   async isValidPDF(buffer: Buffer): Promise<boolean> {
     try {

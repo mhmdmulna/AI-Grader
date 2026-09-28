@@ -5,7 +5,11 @@
  * AI generates suggestions, but the system ensures feedback is accurate.
  */
 
-import { openAIService } from '../ai/openai';
+import {
+  getAIService,
+  isFeedbackResponse,
+  type FeedbackResponse,
+} from '../ai';
 import type { FeedbackResult, QuestionGradeResult } from '@/src/types';
 import type { GradingRun } from '@prisma/client';
 
@@ -18,6 +22,7 @@ export interface FeedbackGenerationInput {
 
 export class FeedbackGeneratorService {
   private static readonly CONFIDENCE_THRESHOLD = 0.7;
+  private readonly aiService = getAIService();
 
   /**
    * Generate feedback from grading results
@@ -33,14 +38,16 @@ export class FeedbackGeneratorService {
     // Generate feedback using AI
     const prompt = this.buildFeedbackPrompt(context, overallScore, maxScore);
 
-    const response = await openAIService.extractStructured<FeedbackResponse>({
+    const response = await this.aiService.extractStructured<FeedbackResponse>({
       prompt,
+      promptVersion: 'grading-feedback-v1',
       schema: {
         strength: 'string (summary of student strengths)',
         improvement: 'string (areas for improvement)',
         evidenceReferences: 'array of strings (IDs of evidence cited)',
         suggestions: 'array of strings (actionable suggestions)',
       },
+      validate: isFeedbackResponse,
       temperature: 0.5,
     });
 
@@ -49,6 +56,11 @@ export class FeedbackGeneratorService {
       improvement: response.data.improvement,
       evidenceReferences: response.data.evidenceReferences,
       suggestions: response.data.suggestions,
+      aiModel: response.model,
+      aiProvider: response.provider,
+      promptVersion: response.promptVersion,
+      tokenUsage: response.tokenUsage?.totalTokens,
+      requestLatencyMs: response.requestLatencyMs,
     };
   }
 
@@ -112,12 +124,4 @@ ${context}
 - evidenceReferences: evidence IDs cited
 - suggestions: list of actionable suggestions.`;
   }
-}
-
-// AI response type
-interface FeedbackResponse {
-  strength: string;
-  improvement: string;
-  evidenceReferences: string[];
-  suggestions: string[];
 }

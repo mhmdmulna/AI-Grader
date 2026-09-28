@@ -26,6 +26,9 @@ export interface QuestionExtractionResult {
   confidence?: number;
   tokenUsage?: number;
   model: string;
+  provider: string;
+  promptVersion?: string;
+  requestLatencyMs?: number;
 }
 
 // Answer extraction types
@@ -52,6 +55,9 @@ export interface AnswerExtractionResult {
   answers: ExtractedAnswerData[];
   tokenUsage?: number;
   model: string;
+  provider: string;
+  promptVersion?: string;
+  requestLatencyMs?: number;
 }
 
 // AI extraction response schemas

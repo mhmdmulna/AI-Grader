@@ -5,10 +5,12 @@
  * Does NOT grade or evaluate - only extracts structure.
  */
 
-import { openAIService } from '../ai/openai';
+import { getAIService, isQuestionExtractionResponse } from '../ai';
 import type { QuestionExtractionResult, AIQuestionExtractionResponse } from '@/src/types';
 
 export class QuestionExtractorService {
+  private readonly aiService = getAIService();
+
   /**
    * Extract questions from document text
    */
@@ -17,8 +19,9 @@ export class QuestionExtractorService {
     const prompt = this.buildQuestionExtractionPrompt(documentText);
 
     // Call AI with structured output
-    const response = await openAIService.extractStructured<AIQuestionExtractionResponse>({
+    const response = await this.aiService.extractStructured<AIQuestionExtractionResponse>({
       prompt,
+      promptVersion: 'question-extraction-v1',
       schema: {
         questions: {
           type: 'array',
@@ -33,6 +36,7 @@ export class QuestionExtractorService {
           },
         },
       },
+      validate: isQuestionExtractionResponse,
       temperature: 0.1,
     });
 
@@ -40,6 +44,9 @@ export class QuestionExtractorService {
       questions: response.data.questions,
       tokenUsage: response.tokenUsage?.totalTokens,
       model: response.model,
+      provider: response.provider,
+      promptVersion: response.promptVersion,
+      requestLatencyMs: response.requestLatencyMs,
     };
   }
 

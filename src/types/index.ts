@@ -8,4 +8,4 @@ export * from './grading';
 export * from './document';
 export * from './extraction';
 export * from './api';
-export type { AIProvider, AIConfig, AIRequest, AIResponse } from './ai';
+export type { AIProvider, AIConfig, AIRequest, AIResponse, AIUsage } from './ai';

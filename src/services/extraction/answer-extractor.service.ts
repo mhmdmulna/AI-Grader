@@ -5,11 +5,13 @@
  * Does NOT grade or evaluate - only extracts and matches to questions.
  */
 
-import { openAIService } from '../ai/openai';
+import { getAIService, isAnswerExtractionResponse } from '../ai';
 import type { AnswerExtractionResult, AIAnswerExtractionResponse, EvidenceData } from '@/src/types';
 import type { Question } from '@prisma/client';
 
 export class AnswerExtractorService {
+  private readonly aiService = getAIService();
+
   /**
    * Extract answers from submission document
    */
@@ -21,8 +23,9 @@ export class AnswerExtractorService {
     const prompt = this.buildAnswerExtractionPrompt(documentText, questions);
 
     // Call AI with structured output
-    const response = await openAIService.extractStructured<AIAnswerExtractionResponse>({
+    const response = await this.aiService.extractStructured<AIAnswerExtractionResponse>({
       prompt,
+      promptVersion: 'answer-extraction-v1',
       schema: {
         answers: {
           type: 'array',
@@ -35,6 +38,7 @@ export class AnswerExtractorService {
           },
         },
       },
+      validate: isAnswerExtractionResponse,
       temperature: 0.1,
     });
 
@@ -65,6 +69,9 @@ export class AnswerExtractorService {
       answers,
       tokenUsage: response.tokenUsage?.totalTokens,
       model: response.model,
+      provider: response.provider,
+      promptVersion: response.promptVersion,
+      requestLatencyMs: response.requestLatencyMs,
     };
   }
 

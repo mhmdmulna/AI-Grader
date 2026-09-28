@@ -8,7 +8,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAIService } from '@/src/services/ai';
+import {
+  AIServiceError,
+  getAIErrorResponse,
+  getAIService,
+} from '@/src/services/ai';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,16 +26,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get AI service (defaults to OpenAI)
-    const aiService = getAIService('openai');
-
-    // Check if configured
-    if (!aiService.isConfigured()) {
-      return NextResponse.json(
-        { error: 'AI service not configured. Check environment variables.' },
-        { status: 503 }
-      );
-    }
+    // Get the configured AI service (defaults to DeepSeek).
+    const aiService = getAIService();
 
     // Call AI service (server-side only)
     const response = await aiService.complete({ prompt });
@@ -41,15 +37,24 @@ export async function POST(request: NextRequest) {
       response: response.content,
       provider: response.provider,
       model: response.model,
+      promptVersion: response.promptVersion,
       usage: response.usage,
+      requestLatencyMs: response.requestLatencyMs,
     });
   } catch (error) {
-    console.error('AI test route error:', error);
-    
+    if (error instanceof AIServiceError) {
+      console.error('AI test route error:', error.toSafeLog());
+      const response = getAIErrorResponse(error);
+      return NextResponse.json(response.body, { status: response.status });
+    }
+
+    console.error('AI test route error:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+
     return NextResponse.json(
-      { 
+      {
         error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     );

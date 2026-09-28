@@ -19,7 +19,7 @@ export type QuestionGradeStatus =
   | 'reviewed'
   | 'finalized';
 
-export type AIProvider = 'openai' | 'claude' | 'gemini';
+export type AIProvider = 'deepseek' | 'openai' | 'claude' | 'gemini';
 
 // AI-generated and human-reviewed grades (deprecated, kept for Phase 4 compatibility)
 export interface Grade {
@@ -77,6 +77,9 @@ export interface CriterionEvaluation {
   requiresReview: boolean;
   aiModel?: string;
   aiProvider?: string;
+  promptVersion?: string;
+  tokenUsage?: number;
+  requestLatencyMs?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -140,6 +143,10 @@ export interface CriterionEvaluationResult {
   confidence: number;
   requiresReview: boolean;
   aiModel?: string;
+  aiProvider?: string;
+  promptVersion?: string;
+  tokenUsage?: number;
+  requestLatencyMs?: number;
 }
 
 export interface QuestionGradeResult {
@@ -148,6 +155,7 @@ export interface QuestionGradeResult {
   maxScore: number;
   criterionEvaluations: CriterionEvaluationResult[];
   aiModel?: string;
+  aiProvider?: string;
 }
 
 export interface FeedbackResult {
@@ -155,4 +163,9 @@ export interface FeedbackResult {
   improvement: string;
   evidenceReferences: string[];
   suggestions: string[];
+  aiModel?: string;
+  aiProvider?: string;
+  promptVersion?: string;
+  tokenUsage?: number;
+  requestLatencyMs?: number;
 }

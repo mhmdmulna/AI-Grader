@@ -2,7 +2,15 @@
  * AI service types
  */
 
-export type AIProvider = 'openai' | 'claude' | 'gemini';
+export type AIProvider = 'deepseek' | 'openai' | 'claude' | 'gemini';
+
+export interface AIUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  cachedTokens?: number;
+  reasoningTokens?: number;
+}
 
 export interface AIConfig {
   provider: AIProvider;
@@ -14,6 +22,11 @@ export interface AIConfig {
 
 export interface AIRequest {
   prompt: string;
+  systemPrompt?: string;
+  promptVersion?: string;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
   context?: Record<string, unknown>;
   provider?: AIProvider;
 }
@@ -22,9 +35,7 @@ export interface AIResponse {
   content: string;
   provider: AIProvider;
   model: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
+  promptVersion?: string;
+  usage?: AIUsage;
+  requestLatencyMs?: number;
 }

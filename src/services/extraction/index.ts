@@ -112,10 +112,13 @@ export class ExtractionService {
           completedAt: new Date(),
           questionCount: questions.length,
           aiModel: result.model,
+          aiProvider: result.provider,
           tokenUsage: result.tokenUsage,
           metadata: {
             totalPages: assignment.document.pageCount || 0,
             extractedQuestions: questions.length,
+            promptVersion: result.promptVersion,
+            requestLatencyMs: result.requestLatencyMs,
           },
         },
       });
@@ -265,12 +268,15 @@ export class ExtractionService {
           completedAt: new Date(),
           answerCount: answers.length,
           aiModel: result.model,
+          aiProvider: result.provider,
           tokenUsage: result.tokenUsage,
           metadata: {
             totalPages: submission.document.pageCount || 0,
             extractedAnswers: answers.length,
             expectedQuestions: submission.assignment.questions.length,
             coverageRate: (answers.length / submission.assignment.questions.length) * 100,
+            promptVersion: result.promptVersion,
+            requestLatencyMs: result.requestLatencyMs,
           },
         },
       });

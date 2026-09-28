@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/src/lib/prisma';
 import { GradingService } from '@/src/services/grading';
+import { AIServiceError, getAIErrorResponse } from '@/src/services/ai';
 
 /**
  * POST /api/submissions/[id]/grade
@@ -25,7 +26,15 @@ export async function POST(
       data: result,
     });
   } catch (error) {
-    console.error('Grading error:', error);
+    if (error instanceof AIServiceError) {
+      console.error('Grading error:', error.toSafeLog());
+      const response = getAIErrorResponse(error);
+      return NextResponse.json(response.body, { status: response.status });
+    }
+
+    console.error('Grading error:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
     return NextResponse.json(
       {
         error: 'Failed to start grading',

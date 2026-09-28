@@ -5,7 +5,11 @@
  * Each criterion is evaluated independently with evidence grounding.
  */
 
-import { openAIService } from '../ai/openai';
+import {
+  getAIService,
+  isCriterionEvaluationResponse,
+  type CriterionEvaluationResponse,
+} from '../ai';
 import type { CriterionEvaluationResult } from '@/src/types';
 import type { GradingCriterion } from '@prisma/client';
 
@@ -19,6 +23,7 @@ export interface CriterionEvaluationInput {
 export class CriterionGraderService {
   private static readonly CONFIDENCE_THRESHOLD = 0.7;
   private static readonly SCORE_VALIDATION_ERROR = 'Score must be between 0 and maxScore';
+  private readonly aiService = getAIService();
 
   /**
    * Evaluate a single criterion against student answer
@@ -37,14 +42,16 @@ export class CriterionGraderService {
     );
 
     // Call AI with structured output
-    const response = await openAIService.extractStructured<CriterionEvaluationResponse>({
+    const response = await this.aiService.extractStructured<CriterionEvaluationResponse>({
       prompt,
+      promptVersion: 'criterion-evaluation-v1',
       schema: {
         recommendedScore: 'number (0 to maxScore, must be valid score)',
         reasoning: 'string (detailed explanation of evaluation)',
         evidenceReferences: 'array of strings (IDs of evidence used)',
         confidence: 'number (0-1, model confidence in evaluation)',
       },
+      validate: isCriterionEvaluationResponse,
       temperature: 0.3,
     });
 
@@ -68,6 +75,10 @@ export class CriterionGraderService {
       confidence: result.confidence,
       requiresReview,
       aiModel: response.model,
+      aiProvider: response.provider,
+      promptVersion: response.promptVersion,
+      tokenUsage: response.tokenUsage?.totalTokens,
+      requestLatencyMs: response.requestLatencyMs,
     };
   }
 
@@ -129,12 +140,4 @@ ${evidenceText}
       throw new Error('Confidence must be between 0 and 1');
     }
   }
-}
-
-// AI response type
-interface CriterionEvaluationResponse {
-  recommendedScore: number;
-  reasoning: string;
-  evidenceReferences: string[];
-  confidence: number;
 }

@@ -64,7 +64,10 @@ cp .env.example .env
 
 Edit `.env` and add:
 - `DATABASE_URL`: PostgreSQL connection string
-- `OPENAI_API_KEY`: Your OpenAI API key
+- `AI_PROVIDER`: AI provider name (defaults to `deepseek`)
+- `DEEPSEEK_API_KEY`: Your server-side DeepSeek API key
+- `DEEPSEEK_BASE_URL`: DeepSeek API endpoint (defaults to `https://api.deepseek.com`)
+- `DEEPSEEK_MODEL`: DeepSeek model (defaults to `deepseek-chat`)
 - `MAX_DOCUMENT_SIZE_MB`: Maximum PDF size (default: 20)
 - `STORAGE_PATH`: Document storage location (default: ./storage/documents)
 
