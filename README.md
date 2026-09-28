@@ -140,6 +140,13 @@ npm run dev
 - Backend validation for ownership, score totals, weights, and malformed criteria
 - Existing AI grading remains unchanged; reference-aware grading is planned for a later phase
 
+✅ **Official Reference Readiness (Phase 3 Provider Roadmap)**
+- Read-only readiness validation for active official answer keys and rubrics
+- Blocking errors for missing, malformed, mislinked, or incorrectly totaled references
+- Non-blocking quality warnings and deterministic summary counts
+- `GET /api/assignments/{id}/official-references/readiness`
+- Readiness is not yet connected to AI grading; rubric-based grading remains a later phase
+
 ## Database Schema
 
 Key entities:
@@ -228,6 +235,7 @@ npm run start        # Start production server
 npm run lint         # Run ESLint
 npm run test:ai      # Run provider-layer tests
 npm run test:phase2  # Run official answer key/rubric tests
+npm run test:phase3  # Run official-reference readiness tests
 npm run db:generate  # Regenerate Prisma client
 npm run db:push      # Push schema changes to database
 npm run db:seed      # Seed courses (PBO & SISOP)
