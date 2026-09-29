@@ -163,6 +163,22 @@ The extraction result also contains a `qualityStatus`, assignment-wide diagnosti
 for mapped, missing, duplicate, unmapped, low-confidence, and malformed answers. Records that
 cannot map to an assignment question are reported but are not persisted as `ExtractedAnswer` rows.
 
+✅ **Official Answer-Key Comparison (Phase 5 Provider Roadmap)**
+- Compares persisted answers for positive-point questions with active official answer keys
+- Uses normalized exact matching and deterministic token-overlap signals; it does not assign scores
+- Returns matched, partial, not-matched, missing-data, and needs-review statuses
+- Withholds comparison for answers affected by extraction diagnostics or low confidence
+- Includes Phase 3 readiness failures without changing readiness behavior elsewhere
+- `POST /api/submissions/{id}/compare-answer-key` returns response-only comparison results
+
+### Answer-Key Comparison Contract
+
+Each question result identifies the question, persisted student answer, and active answer key. It
+includes a similarity signal, rationale, source pages, extraction confidence, warnings, and blocking
+issues. The assignment summary reports matched, partial, not-matched, missing, and needs-review
+counts. Similarity is a lexical signal for future rubric grading, not a grade or semantic correctness
+guarantee. Results are not persisted because the current schema has no dedicated comparison model.
+
 ## Database Schema
 
 Key entities:
@@ -253,6 +269,7 @@ npm run test:ai      # Run provider-layer tests
 npm run test:phase2  # Run official answer key/rubric tests
 npm run test:phase3  # Run official-reference readiness tests
 npm run test:phase4  # Run structured student-answer extraction tests
+npm run test:phase5  # Run official answer-key comparison tests
 npm run db:generate  # Regenerate Prisma client
 npm run db:push      # Push schema changes to database
 npm run db:seed      # Seed courses (PBO & SISOP)

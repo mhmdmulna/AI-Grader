@@ -11,6 +11,7 @@
     "test:phase2": "tsx --test tests/official-grading-reference.test.ts",
     "test:phase3": "tsx --test tests/official-reference-readiness.test.ts",
     "test:phase4": "tsx --test tests/structured-answer-extraction.test.ts",
+    "test:phase5": "tsx --test tests/answer-key-comparison.test.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
