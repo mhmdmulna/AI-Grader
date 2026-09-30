@@ -214,6 +214,30 @@ grading runs, deterministic score calculations, or final review decisions.
 final-grade records. The lifecycle is `draft` or `needs_review` → `approved` or `rejected` →
 `finalized`; AI generation never approves or finalizes its own output.
 
+✅ **Finalized Grade Spreadsheet Export (Phase 8 Provider Roadmap)**
+- Accepts a user-provided `.xlsx` workbook and writes a separate output workbook
+- Creates a uniquely named `Grading Results` sheet by default, preserving all source sheets and cells
+- Can target an explicitly named existing sheet and match rows by `studentId` or `submissionId`
+- Updates one unambiguous matching row or appends a new row when no match exists
+- Detects mapped headers case-insensitively and appends missing result columns when allowed
+- Exports final totals, question and criterion detail, feedback, status, reviewer, and finalization time
+- Rejects unsupported, malformed, protected, duplicate-identifier, merged-cell, formula-overwrite, and conflicting-cell operations
+- `POST /api/assignments/{id}/spreadsheet/export` performs the export without calling an AI provider
+
+### Spreadsheet Export Workflow
+
+Send multipart form data with an `.xlsx` file in `file` and an optional JSON object in `options`.
+The options may specify `sheetName`, `headerRow`, `identifierField`, `allowCreateColumns`,
+`overwriteExistingCells`, and custom `columns` header names. `studentId` is the default stable
+identifier. Use `submissionId` when an assignment can contain more than one submission for the same
+student. Existing non-empty mapped result cells are not replaced unless
+`overwriteExistingCells: true`; formula cells are never overwritten.
+
+If no sheet is selected, the exporter creates a new result sheet. If an existing sheet is selected,
+only mapped result cells and newly appended result columns are changed in the output copy. The API
+returns the output path, selected sheet, updated/appended row counts, added columns, skipped records,
+and safety warnings. Phase 8 supports `.xlsx` only; CSV and live Google Sheets sync remain out of scope.
+
 ## Database Schema
 
 Key entities:
@@ -310,6 +334,7 @@ npm run test:phase4  # Run structured student-answer extraction tests
 npm run test:phase5  # Run official answer-key comparison tests
 npm run test:phase6  # Run official rubric draft-grading tests
 npm run test:phase7  # Run human review and finalization workflow tests
+npm run test:phase8  # Run finalized-grade spreadsheet export tests
 npm run db:generate  # Regenerate Prisma client
 npm run db:push      # Push schema changes to database
 npm run db:seed      # Seed courses (PBO & SISOP)
