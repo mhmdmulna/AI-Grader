@@ -179,6 +179,23 @@ issues. The assignment summary reports matched, partial, not-matched, missing, a
 counts. Similarity is a lexical signal for future rubric grading, not a grade or semantic correctness
 guarantee. Results are not persisted because the current schema has no dedicated comparison model.
 
+✅ **Official Rubric Draft Grading (Phase 6 Provider Roadmap)**
+- Uses active official answer keys and one active official rubric as the only grading authority
+- Evaluates each official criterion through the configured AI provider with strict backend validation
+- Treats Phase 5 lexical similarity as diagnostic context, never as a score
+- Clamps draft points to official criterion maximums and flags altered or low-confidence output
+- Explicitly handles missing answers, missing references, and extraction uncertainty
+- `POST /api/submissions/{id}/grade-with-rubric` returns a human-reviewable draft
+
+### Official Rubric Draft Contract
+
+Each criterion result includes its official criterion and answer-key references, maximum and draft
+points, concise feedback, student-answer evidence, confidence, review status, warnings, and blocking
+issues. Assignment and question totals are deterministic sums of validated criterion results.
+Assignment-level criteria remain separately totaled because distributing their points across questions
+would invent a scoring rule. Draft results are response-only and never overwrite existing grades,
+grading runs, deterministic score calculations, or final review decisions.
+
 ## Database Schema
 
 Key entities:
@@ -270,6 +287,7 @@ npm run test:phase2  # Run official answer key/rubric tests
 npm run test:phase3  # Run official-reference readiness tests
 npm run test:phase4  # Run structured student-answer extraction tests
 npm run test:phase5  # Run official answer-key comparison tests
+npm run test:phase6  # Run official rubric draft-grading tests
 npm run db:generate  # Regenerate Prisma client
 npm run db:push      # Push schema changes to database
 npm run db:seed      # Seed courses (PBO & SISOP)

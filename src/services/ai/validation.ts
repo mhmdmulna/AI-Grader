@@ -2,6 +2,7 @@ import type {
   AIAnswerExtractionEnvelope,
   AIAnswerExtractionResponse,
   AIQuestionExtractionResponse,
+  RubricCriterionAIResponse,
 } from '@/src/types';
 
 export interface CriterionEvaluationResponse {
@@ -89,4 +90,22 @@ export function isFeedbackResponse(value: unknown): value is FeedbackResponse {
     typeof value.improvement === 'string' &&
     isStringArray(value.evidenceReferences) &&
     isStringArray(value.suggestions);
+}
+
+export function isRubricCriterionAIResponse(
+  value: unknown
+): value is RubricCriterionAIResponse {
+  return isRecord(value) &&
+    isFiniteNumber(value.awardedPoints) &&
+    typeof value.feedback === 'string' &&
+    value.feedback.trim().length > 0 &&
+    isStringArray(value.evidence) &&
+    value.evidence.length > 0 &&
+    value.evidence.every((item) => item.trim().length > 0) &&
+    isFiniteNumber(value.confidence) &&
+    value.confidence >= 0 &&
+    value.confidence <= 1 &&
+    (value.reviewStatus === 'ready' || value.reviewStatus === 'needs_review') &&
+    isStringArray(value.warnings) &&
+    value.warnings.every((item) => item.trim().length > 0);
 }
