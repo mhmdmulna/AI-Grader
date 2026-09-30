@@ -16,6 +16,8 @@
     "test:phase7": "tsx --test tests/rubric-draft-review.test.ts",
     "test:phase8": "tsx --test tests/spreadsheet-export.test.ts",
     "test:phase9": "tsx --test tests/batch-grading-and-export-delivery.test.ts",
+    "test:phase10": "tsx --test tests/phase10-*.test.ts",
+    "cleanup:exports": "tsx scripts/cleanup-spreadsheet-exports.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",

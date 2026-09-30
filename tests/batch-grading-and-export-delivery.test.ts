@@ -138,6 +138,7 @@ function dependencyHarness(overrides: Partial<BatchGradingDependencies> = {}) {
       gradingDraftId: null,
       finalizedAt: null,
     }),
+    findActiveDuplicateOperation: async () => null,
     createOperation: async () => ({ id: 'batch-1' }),
     completeOperation: async () => {
       calls.completed++;

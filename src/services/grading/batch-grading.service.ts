@@ -18,10 +18,16 @@ import {
   RubricDraftReviewError,
   RubricDraftReviewService,
 } from './rubric-draft-review.service';
+import { getBatchOperationStaleMinutes } from '@/src/config/environment';
 
 const MAX_BATCH_SIZE = 100;
+const LARGE_BATCH_WARNING_SIZE = 20;
 
-export type BatchGradingErrorCode = 'invalid_input' | 'not_found' | 'persistence_error';
+export type BatchGradingErrorCode =
+  | 'invalid_input'
+  | 'not_found'
+  | 'duplicate_operation'
+  | 'persistence_error';
 
 export class BatchGradingError extends Error {
   constructor(
@@ -59,6 +65,11 @@ export interface BatchGradingDependencies {
   saveDraft(draft: RubricDraftGradingResult): Promise<{ id: string; status: string }>;
   findReusableDraft(submissionId: string): Promise<ReusableGradingDraft | null>;
   getExportReadiness(submissionId: string): Promise<BatchExportReadiness>;
+  findActiveDuplicateOperation(input: {
+    assignmentId: string;
+    request: BatchGradingRequest;
+    startedAfter: Date;
+  }): Promise<{ id: string } | null>;
   createOperation(input: {
     assignmentId: string;
     request: BatchGradingRequest;
@@ -310,6 +321,28 @@ export function createPrismaBatchGradingDependencies(
         finalizedAt: draft?.finalizedAt ?? null,
       };
     },
+    async findActiveDuplicateOperation({ assignmentId, request, startedAfter }) {
+      const candidates = await prisma.batchGradingOperation.findMany({
+        where: {
+          assignmentId,
+          status: 'processing',
+          startedAt: { gte: startedAfter },
+          failFast: request.failFast,
+          forceNewDraft: request.forceNewDraft,
+        },
+        select: { id: true, selectedSubmissionIds: true, steps: true },
+        orderBy: { startedAt: 'desc' },
+        take: 20,
+      });
+      const selectedIds = [...request.submissionIds].sort();
+      const steps = [...request.steps].sort();
+      return candidates.find((candidate) =>
+        candidate.selectedSubmissionIds.length === selectedIds.length &&
+        [...candidate.selectedSubmissionIds].sort().every((id, index) => id === selectedIds[index]) &&
+        candidate.steps.length === steps.length &&
+        [...candidate.steps].sort().every((step, index) => step === steps[index])
+      ) ?? null;
+    },
     async createOperation({ assignmentId, request, startedAt }) {
       return prisma.batchGradingOperation.create({
         data: {
@@ -353,6 +386,18 @@ export class BatchGradingService {
     }
 
     const startedAt = new Date();
+    const staleMinutes = getBatchOperationStaleMinutes();
+    const duplicate = await this.dependencies.findActiveDuplicateOperation({
+      assignmentId,
+      request,
+      startedAfter: new Date(startedAt.getTime() - staleMinutes * 60 * 1000),
+    });
+    if (duplicate) {
+      throw new BatchGradingError(
+        `An equivalent batch operation (${duplicate.id}) is already processing. Wait for it to finish or retry after ${staleMinutes} minutes.`,
+        'duplicate_operation'
+      );
+    }
     const operation = await this.dependencies.createOperation({
       assignmentId,
       request,
@@ -435,7 +480,15 @@ export class BatchGradingService {
       completedCount,
       failedCount,
       skippedCount,
-      warnings: submissions.flatMap((item) => item.warnings),
+      warnings: [
+        ...(request.submissionIds.length >= LARGE_BATCH_WARNING_SIZE
+          ? [{
+              code: 'LARGE_SYNCHRONOUS_BATCH',
+              message: `This ${request.submissionIds.length}-submission batch runs synchronously and may exceed the request timeout. Use smaller batches until a background worker is available.`,
+            }]
+          : []),
+        ...submissions.flatMap((item) => item.warnings),
+      ],
       blockingIssues: submissions.flatMap((item) => item.blockingIssues),
       startedAt: startedAt.toISOString(),
       completedAt: completedAt.toISOString(),

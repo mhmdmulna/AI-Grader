@@ -33,6 +33,8 @@ export async function POST(
     if (error instanceof BatchGradingError) {
       const status = error.code === 'not_found'
         ? 404
+        : error.code === 'duplicate_operation'
+          ? 409
         : error.code === 'persistence_error'
           ? 500
           : 400;

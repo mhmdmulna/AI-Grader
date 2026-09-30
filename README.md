@@ -278,6 +278,35 @@ with private no-store headers. `SPREADSHEET_EXPORT_RETENTION_HOURS` defaults to 
 `0` to disable expiry. Expired or missing records are marked when accessed. Files are not deleted
 automatically; storage cleanup remains an explicit operational task.
 
+✅ **Operational Stabilization and Release Readiness (Phase 10 Provider Roadmap)**
+- `GET /api/health` verifies required server configuration, database connectivity, and writable
+  spreadsheet storage without making an AI request or returning secret values
+- Health output includes the configured AI provider/model plus application version and optional
+  build identifier; failed readiness returns HTTP 503
+- `npm run cleanup:exports` lists expired export records without deleting them
+- `npm run cleanup:exports -- --delete` explicitly removes safely resolved expired files and their
+  records; unsafe paths and symlinks are preserved and reported
+- Equivalent recent batch requests return a conflict instead of intentionally starting a duplicate,
+  and batches of 20 or more submissions receive a synchronous-processing warning
+- A mocked release workflow covers official references, extraction, comparison, AI draft creation,
+  human approval/finalization, workbook export, and secured download metadata without an API key
+
+### Production Operations and Known Limits
+
+Set `DATABASE_URL`, `AI_PROVIDER`, the selected provider API key, and a writable persistent
+`SPREADSHEET_STORAGE_PATH` before starting the server. `APP_VERSION` and `BUILD_SHA` are optional
+release metadata. `HEALTH_CHECK_TIMEOUT_MS` defaults to 3000 milliseconds, and
+`BATCH_OPERATION_STALE_MINUTES` defaults to 30 minutes. Query `/api/health` from the deployment
+platform for readiness; it performs no paid provider call.
+
+Export cleanup is never automatic. Schedule the explicit delete command externally only after first
+reviewing the dry-run output. The current batch route executes sequentially inside one HTTP request.
+Duplicate detection is conservative but is not a distributed lock: simultaneous requests on
+multiple application instances can still race, and abandoned `processing` rows are ignored only
+after the configured stale interval. High-volume deployments should add a durable job queue,
+worker-owned leases, retries, and distributed idempotency before increasing batch sizes. See
+[`RELEASE_CHECKLIST.md`](./RELEASE_CHECKLIST.md) for the deployment checklist.
+
 ## Database Schema
 
 Key entities:
@@ -378,6 +407,9 @@ npm run test:phase6  # Run official rubric draft-grading tests
 npm run test:phase7  # Run human review and finalization workflow tests
 npm run test:phase8  # Run finalized-grade spreadsheet export tests
 npm run test:phase9  # Run batch grading and secured export delivery tests
+npm run test:phase10 # Run operational readiness and mocked release-workflow tests
+npm run cleanup:exports # Inspect expired exports (dry run)
+# npm run cleanup:exports -- --delete  # Explicitly delete selected expired exports
 npm run db:generate  # Regenerate Prisma client
 npm run db:push      # Push schema changes to database
 npm run db:seed      # Seed courses (PBO & SISOP)
