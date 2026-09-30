@@ -13,6 +13,14 @@ import type {
   SpreadsheetSkippedRecord,
 } from '@/src/types';
 import { SPREADSHEET_EXPORT_FIELDS } from '@/src/types';
+import {
+  generateSpreadsheetDownloadToken,
+  PrismaSpreadsheetExportRegistry,
+  spreadsheetDownloadPath,
+  spreadsheetExportExpiry,
+  type SpreadsheetExportRecordSnapshot,
+  type SpreadsheetExportRegistry,
+} from './spreadsheet-export-delivery.service';
 
 const DEFAULT_OUTPUT_SHEET = 'Grading Results';
 const DEFAULT_MAX_FILE_SIZE_MB = 20;
@@ -494,6 +502,7 @@ export async function exportFinalizedGradesWorkbook(input: {
     buffer: Buffer.from(output),
     summary: {
       outputPath: null,
+      download: null,
       sourceFilename: path.basename(input.sourceFilename),
       sheetName: worksheet.name,
       identifierField: options.identifierField,
@@ -512,10 +521,15 @@ interface FinalizedRecordsResult {
 }
 
 export class SpreadsheetExportService {
+  private readonly registry: SpreadsheetExportRegistry;
+
   constructor(
     private readonly prisma: PrismaClient,
-    private readonly storagePath = process.env.SPREADSHEET_STORAGE_PATH || './storage/spreadsheets'
-  ) {}
+    private readonly storagePath = process.env.SPREADSHEET_STORAGE_PATH || './storage/spreadsheets',
+    registry?: SpreadsheetExportRegistry
+  ) {
+    this.registry = registry ?? new PrismaSpreadsheetExportRegistry(prisma);
+  }
 
   private async getFinalizedRecords(assignmentId: string): Promise<FinalizedRecordsResult> {
     const assignment = await this.prisma.assignment.findUnique({
@@ -665,20 +679,54 @@ export class SpreadsheetExportService {
     });
 
     const safeAssignmentId = input.assignmentId.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const outputFilename = `${safeAssignmentId}-${Date.now()}-${crypto
+    const createdAt = new Date();
+    const outputFilename = `${safeAssignmentId}-${createdAt.getTime()}-${crypto
       .randomBytes(6)
       .toString('hex')}-grading-results.xlsx`;
     const absoluteStoragePath = path.resolve(this.storagePath);
     const absoluteOutputPath = path.join(absoluteStoragePath, outputFilename);
+    const { token, tokenHash } = generateSpreadsheetDownloadToken();
+    const expiresAt = spreadsheetExportExpiry(createdAt);
+    let exportRecord: SpreadsheetExportRecordSnapshot | undefined;
     try {
+      exportRecord = await this.registry.createPending({
+        assignmentId: input.assignmentId,
+        storageKey: outputFilename,
+        sourceFilename: path.basename(input.sourceFilename),
+        downloadFilename: `${safeAssignmentId}-grading-results.xlsx`,
+        downloadTokenHash: tokenHash,
+        createdAt,
+        expiresAt,
+      });
       await fs.mkdir(absoluteStoragePath, { recursive: true });
       await fs.writeFile(absoluteOutputPath, result.buffer);
+      await this.registry.markReady(exportRecord.id, result.buffer.length, {
+        sheetName: result.summary.sheetName,
+        identifierField: result.summary.identifierField,
+        rowsUpdated: result.summary.rowsUpdated,
+        rowsAppended: result.summary.rowsAppended,
+        columnsAdded: result.summary.columnsAdded,
+        skippedRecords: result.summary.skippedRecords,
+        warnings: result.summary.warnings,
+      });
     } catch {
+      if (exportRecord) {
+        await this.registry.markFailed(exportRecord.id).catch(() => undefined);
+      }
       throw new SpreadsheetExportError(
-        'The exported workbook could not be saved to spreadsheet storage.',
+        'The exported workbook or its controlled download record could not be saved.',
         'storage_error'
       );
     }
-    return { ...result.summary, outputPath: absoluteOutputPath };
+    return {
+      ...result.summary,
+      outputPath: absoluteOutputPath,
+      download: {
+        exportId: exportRecord.id,
+        downloadPath: spreadsheetDownloadPath(exportRecord.id, token),
+        createdAt,
+        expiresAt,
+      },
+    };
   }
 }

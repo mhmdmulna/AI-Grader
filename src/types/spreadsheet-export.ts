@@ -57,8 +57,16 @@ export interface SpreadsheetExportWarning {
   message: string;
 }
 
+export interface SpreadsheetExportDownloadReference {
+  exportId: string;
+  downloadPath: string;
+  createdAt: Date;
+  expiresAt: Date | null;
+}
+
 export interface SpreadsheetExportSummary {
   outputPath: string | null;
+  download: SpreadsheetExportDownloadReference | null;
   sourceFilename: string;
   sheetName: string;
   identifierField: SpreadsheetIdentifierField;

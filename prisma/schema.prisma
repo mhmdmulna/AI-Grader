@@ -40,6 +40,8 @@ model Assignment {
   questionExtraction QuestionExtraction?
   officialRubrics    OfficialRubric[]
   rubricGradingDrafts RubricGradingDraft[]
+  batchGradingOperations BatchGradingOperation[]
+  spreadsheetExports SpreadsheetExport[]
 
   @@index([courseId])
   @@index([status])
@@ -552,4 +554,55 @@ model RubricGradingDraftAudit {
   @@index([criterionResultId])
   @@index([action])
   @@map("rubric_grading_draft_audits")
+}
+
+// Assignment-level orchestration record for selected-submission batch grading.
+// Results are snapshots only; this model never represents human approval or finalization.
+model BatchGradingOperation {
+  id                    String     @id @default(cuid())
+  assignmentId          String
+  assignment            Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  status                String     @default("processing") // processing, completed, completed_with_failures, failed
+  selectedSubmissionIds String[]   @default([])
+  steps                 String[]   @default([])
+  failFast              Boolean    @default(false)
+  forceNewDraft         Boolean    @default(false)
+  completedCount        Int        @default(0)
+  failedCount           Int        @default(0)
+  skippedCount          Int        @default(0)
+  results               Json?
+  warnings              Json?
+  blockingIssues        Json?
+  startedAt             DateTime   @default(now())
+  completedAt           DateTime?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+
+  @@index([assignmentId, createdAt])
+  @@index([status])
+  @@map("batch_grading_operations")
+}
+
+// Metadata and access token hash for a generated spreadsheet export.
+// storageKey is a generated filename relative to SPREADSHEET_STORAGE_PATH.
+model SpreadsheetExport {
+  id                String     @id @default(cuid())
+  assignmentId      String
+  assignment        Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  storageKey        String
+  sourceFilename    String
+  downloadFilename  String
+  contentType       String     @default("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+  fileSize          Int        @default(0)
+  status            String     @default("pending") // pending, ready, failed, missing, expired
+  downloadTokenHash String     @unique
+  metadata          Json?
+  expiresAt         DateTime?
+  lastDownloadedAt  DateTime?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([assignmentId, createdAt])
+  @@index([status, expiresAt])
+  @@map("spreadsheet_exports")
 }

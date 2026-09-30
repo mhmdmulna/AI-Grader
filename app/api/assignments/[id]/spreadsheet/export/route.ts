@@ -68,7 +68,13 @@ export async function POST(
       sourceFilename: file.name,
       options,
     });
-    return NextResponse.json({ export: summary }, { status: 201 });
+    return NextResponse.json({
+      export: {
+        ...summary,
+        // Keep the Phase 8 field stable while preventing server-path disclosure.
+        outputPath: null,
+      },
+    }, { status: 201 });
   } catch (error) {
     return errorResponse(error);
   }

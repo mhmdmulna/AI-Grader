@@ -235,8 +235,48 @@ student. Existing non-empty mapped result cells are not replaced unless
 
 If no sheet is selected, the exporter creates a new result sheet. If an existing sheet is selected,
 only mapped result cells and newly appended result columns are changed in the output copy. The API
-returns the output path, selected sheet, updated/appended row counts, added columns, skipped records,
-and safety warnings. Phase 8 supports `.xlsx` only; CSV and live Google Sheets sync remain out of scope.
+returns a controlled download reference, the selected sheet, updated/appended row counts, added
+columns, skipped records, and safety warnings. The Phase 8 `outputPath` field remains present but is
+returned as `null` by the public API so server-local paths are not disclosed. Phase 8 supports
+`.xlsx` only; CSV and live Google Sheets sync remain out of scope.
+
+✅ **Batch Grading and Secured Export Delivery (Phase 9 Provider Roadmap)**
+- Runs selected readiness, extraction-status, deterministic answer-key comparison, rubric draft
+  grading, draft persistence, and export-readiness steps across selected submissions
+- Returns a persisted batch id, per-submission step results, completed/failed/skipped counts,
+  warnings, blocking issues, and timestamps
+- Continues after submission failures by default; `failFast: true` stops later submissions after the
+  first failure
+- Reuses an existing non-rejected draft when it is newer than the completed extraction and active
+  official references; `forceNewDraft: true` explicitly requests a new draft
+- May generate and persist AI drafts but never approves or finalizes them
+- Registers each generated workbook with an opaque token hash and exposes
+  `GET /api/spreadsheet-exports/{exportId}/download?token=...`
+- Rejects invalid tokens, path traversal, symlink escape, missing files, changed file sizes, and
+  expired exports
+
+### Batch Grading Workflow
+
+`POST /api/assignments/{id}/batch-grading` accepts JSON containing `submissionIds`, optional
+`steps`, `failFast`, and `forceNewDraft`. The default step list runs the complete Phase 9 workflow.
+`draft_persistence` requires `rubric_draft_grading`. Answer extraction is checked but is not started
+automatically. A skipped grading step reports the unmet prerequisite without approving or
+finalizing anything. `GET /api/batch-grading/{batchId}` returns the persisted operation status and
+per-submission result snapshot.
+
+Batch operation snapshots are stored in `BatchGradingOperation`. Conservative duplicate detection
+uses timestamps from the completed extraction, extracted answers, active rubric criteria, and
+active answer keys. It does not provide distributed locking, so concurrent identical requests can
+still race; callers should avoid submitting the same selection concurrently.
+
+### Export Download and Retention
+
+`POST /api/assignments/{id}/spreadsheet/export` now creates a `SpreadsheetExport` record and returns
+an opaque `downloadPath`. The download route resolves only generated basenames inside
+`SPREADSHEET_STORAGE_PATH`, verifies the token hash and recorded file size, and sends the workbook
+with private no-store headers. `SPREADSHEET_EXPORT_RETENTION_HOURS` defaults to 168 hours; set it to
+`0` to disable expiry. Expired or missing records are marked when accessed. Files are not deleted
+automatically; storage cleanup remains an explicit operational task.
 
 ## Database Schema
 
@@ -251,6 +291,8 @@ Key entities:
 - **RubricGradingDraft**: Durable AI draft and review/finalization state
 - **RubricGradingDraftCriterion**: AI recommendation plus explicit final human criterion value
 - **RubricGradingDraftAudit**: Append-only reviewer override and finalization history
+- **BatchGradingOperation**: Persisted assignment-level batch request and per-submission result snapshot
+- **SpreadsheetExport**: Controlled generated-file metadata, retention, and download-token hash
 - **Document**: PDF documents (assignment questions, student submissions)
 - **DocumentPage**: Individual pages with extracted text and metadata
 - **QuestionExtraction**: Status tracking for AI question extraction
@@ -335,6 +377,7 @@ npm run test:phase5  # Run official answer-key comparison tests
 npm run test:phase6  # Run official rubric draft-grading tests
 npm run test:phase7  # Run human review and finalization workflow tests
 npm run test:phase8  # Run finalized-grade spreadsheet export tests
+npm run test:phase9  # Run batch grading and secured export delivery tests
 npm run db:generate  # Regenerate Prisma client
 npm run db:push      # Push schema changes to database
 npm run db:seed      # Seed courses (PBO & SISOP)
