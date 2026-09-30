@@ -189,6 +189,7 @@ test('produces a structured, human-reviewable rubric draft', async () => {
   assert.equal(result.criteria[0].awardedDraftPoints, 8);
   assert.equal(result.criteria[0].criterionId, 'c1');
   assert.equal(result.criteria[0].officialAnswerKeyIds[0], 'ak1');
+  assert.deepEqual(result.criteria[0].officialAnswerKeys, [{ id: 'ak1', version: 1 }]);
   assert.equal(result.summary.totalPossiblePoints, 10);
   assert.equal(result.summary.totalDraftAwardedPoints, 8);
   assert.deepEqual(result.aiMetadata.providers, ['deepseek']);

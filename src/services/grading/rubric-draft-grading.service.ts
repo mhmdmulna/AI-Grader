@@ -164,6 +164,10 @@ function skippedCriterion(
     feedback,
     evidence: [],
     officialAnswerKeyIds: context.answerKeys.map((key) => key.id),
+    officialAnswerKeys: context.answerKeys.map((key) => ({
+      id: key.id,
+      version: key.version,
+    })),
     rubricReference: {
       description: context.criterion.description,
       gradingInstructions: context.criterion.gradingInstructions,
@@ -287,6 +291,10 @@ async function gradeCriterionWithAI(
     feedback: response.data.feedback.trim(),
     evidence: response.data.evidence.map((item) => item.trim()),
     officialAnswerKeyIds: context.answerKeys.map((key) => key.id),
+    officialAnswerKeys: context.answerKeys.map((key) => ({
+      id: key.id,
+      version: key.version,
+    })),
     rubricReference: {
       description: context.criterion.description,
       gradingInstructions: context.criterion.gradingInstructions,

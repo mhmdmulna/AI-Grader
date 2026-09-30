@@ -13,6 +13,7 @@
     "test:phase4": "tsx --test tests/structured-answer-extraction.test.ts",
     "test:phase5": "tsx --test tests/answer-key-comparison.test.ts",
     "test:phase6": "tsx --test tests/rubric-draft-grading.test.ts",
+    "test:phase7": "tsx --test tests/rubric-draft-review.test.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",

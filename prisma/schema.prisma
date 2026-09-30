@@ -39,6 +39,7 @@ model Assignment {
   criteria           GradingCriterion[]
   questionExtraction QuestionExtraction?
   officialRubrics    OfficialRubric[]
+  rubricGradingDrafts RubricGradingDraft[]
 
   @@index([courseId])
   @@index([status])
@@ -66,6 +67,7 @@ model Question {
   questionGrades       QuestionGrade[]
   officialAnswerKeys     OfficialAnswerKey[]
   officialRubricCriteria OfficialRubricCriterion[]
+  rubricDraftCriteria    RubricGradingDraftCriterion[]
 
   @@unique([assignmentId, questionNumber])
   @@index([assignmentId])
@@ -125,6 +127,7 @@ model OfficialRubric {
   createdAt    DateTime                  @default(now())
   updatedAt    DateTime                  @updatedAt
   criteria     OfficialRubricCriterion[]
+  gradingDrafts RubricGradingDraft[]
 
   @@unique([assignmentId, version])
   @@index([assignmentId, status])
@@ -145,6 +148,7 @@ model OfficialRubricCriterion {
   order               Int            @default(0)
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
+  gradingDraftCriteria RubricGradingDraftCriterion[]
 
   @@unique([rubricId, order])
   @@index([rubricId])
@@ -168,6 +172,7 @@ model Submission {
   extractedAnswers ExtractedAnswer[]
   answerExtraction AnswerExtraction?
   gradingRun       GradingRun?
+  rubricGradingDrafts RubricGradingDraft[]
 
   @@index([assignmentId])
   @@index([status])
@@ -359,6 +364,7 @@ model GradingRun {
   criterionEvaluations CriterionEvaluation[]
   questionGrades     QuestionGrade[]
   gradeSummary       GradeSummary?
+  finalizedRubricDrafts RubricGradingDraft[]
 
   @@index([status])
   @@index([submissionId])
@@ -439,4 +445,111 @@ model GradeSummary {
   updatedAt       DateTime        @updatedAt
 
   @@map("grade_summaries")
+}
+
+// Durable snapshot of a Phase 6 rubric-based AI grading draft.
+// AI output remains advisory until an explicit human approval and finalization.
+model RubricGradingDraft {
+  id                      String                        @id @default(cuid())
+  submissionId            String
+  submission              Submission                    @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  assignmentId            String
+  assignment              Assignment                    @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  officialRubricId        String
+  officialRubric          OfficialRubric                @relation(fields: [officialRubricId], references: [id], onDelete: Restrict)
+  officialRubricVersion   Int
+  status                  String                        @default("draft") // draft, needs_review, approved, rejected, finalized
+  totalPossiblePoints     Float
+  totalDraftAwardedPoints Float
+  finalScore              Float?
+  warnings                Json?
+  blockingIssues          Json?
+  aiProviders             String[]                      @default([])
+  aiModels                String[]                      @default([])
+  promptVersions          String[]                      @default([])
+  totalTokenUsage         Int?
+  totalRequestLatencyMs   Int?
+  reviewedById            String?
+  reviewedByName          String?
+  reviewedAt              DateTime?
+  approvedAt              DateTime?
+  rejectedAt              DateTime?
+  finalizedAt             DateTime?
+  finalizedGradingRunId   String?
+  finalizedGradingRun     GradingRun?                   @relation(fields: [finalizedGradingRunId], references: [id], onDelete: SetNull)
+  createdAt               DateTime                      @default(now())
+  updatedAt               DateTime                      @updatedAt
+  criteria                RubricGradingDraftCriterion[]
+  auditEntries            RubricGradingDraftAudit[]
+
+  @@index([submissionId, createdAt])
+  @@index([assignmentId])
+  @@index([officialRubricId])
+  @@index([status])
+  @@index([finalizedGradingRunId])
+  @@map("rubric_grading_drafts")
+}
+
+// Criterion-level AI recommendation and the eventual explicit human value.
+model RubricGradingDraftCriterion {
+  id                        String                    @id @default(cuid())
+  gradingDraftId            String
+  gradingDraft              RubricGradingDraft        @relation(fields: [gradingDraftId], references: [id], onDelete: Cascade)
+  officialRubricCriterionId String
+  officialRubricCriterion   OfficialRubricCriterion   @relation(fields: [officialRubricCriterionId], references: [id], onDelete: Restrict)
+  questionId                String?
+  question                  Question?                 @relation(fields: [questionId], references: [id], onDelete: SetNull)
+  criterionName             String
+  maxPoints                 Float
+  aiAwardedPoints           Float?
+  finalAwardedPoints        Float?
+  aiFeedback                String                    @db.Text
+  finalFeedback             String?                   @db.Text
+  evidence                  Json
+  answerKeyReferences       Json
+  rubricReference           Json
+  aiCriterionStatus         String
+  reviewStatus              String                    @default("pending") // pending, approved, needs_review, rejected
+  warnings                  Json?
+  blockingIssues            Json?
+  confidence                Float?
+  aiProvider                String?
+  aiModel                   String?
+  promptVersion             String?
+  tokenUsage                Int?
+  requestLatencyMs          Int?
+  reviewedById              String?
+  reviewedByName            String?
+  reviewedAt                DateTime?
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+  auditEntries              RubricGradingDraftAudit[]
+
+  @@unique([gradingDraftId, officialRubricCriterionId])
+  @@index([gradingDraftId])
+  @@index([officialRubricCriterionId])
+  @@index([questionId])
+  @@index([reviewStatus])
+  @@map("rubric_grading_draft_criteria")
+}
+
+// Append-only human review and finalization audit history.
+model RubricGradingDraftAudit {
+  id                String                       @id @default(cuid())
+  gradingDraftId    String
+  gradingDraft      RubricGradingDraft           @relation(fields: [gradingDraftId], references: [id], onDelete: Cascade)
+  criterionResultId String?
+  criterionResult   RubricGradingDraftCriterion? @relation(fields: [criterionResultId], references: [id], onDelete: SetNull)
+  action            String
+  reviewerId        String?
+  reviewerName      String?
+  reason            String?                      @db.Text
+  previousValues    Json?
+  newValues         Json?
+  createdAt         DateTime                     @default(now())
+
+  @@index([gradingDraftId, createdAt])
+  @@index([criterionResultId])
+  @@index([action])
+  @@map("rubric_grading_draft_audits")
 }

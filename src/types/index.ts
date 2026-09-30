@@ -11,4 +11,5 @@ export * from './api';
 export * from './grading-reference';
 export * from './answer-key-comparison';
 export * from './rubric-draft-grading';
+export * from './rubric-draft-review';
 export type { AIProvider, AIConfig, AIRequest, AIResponse, AIUsage } from './ai';

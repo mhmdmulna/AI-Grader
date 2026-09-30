@@ -40,6 +40,10 @@ export interface RubricDraftCriterionResult {
   feedback: string;
   evidence: string[];
   officialAnswerKeyIds: string[];
+  officialAnswerKeys: Array<{
+    id: string;
+    version: number;
+  }>;
   rubricReference: {
     description: string;
     gradingInstructions: string | null;

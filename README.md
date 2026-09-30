@@ -196,6 +196,24 @@ Assignment-level criteria remain separately totaled because distributing their p
 would invent a scoring rule. Draft results are response-only and never overwrite existing grades,
 grading runs, deterministic score calculations, or final review decisions.
 
+✅ **Human Review and Finalization (Phase 7 Provider Roadmap)**
+- Persists an exact Phase 6 draft with rubric, answer-key version, criterion, AI, usage, warning, and blocking metadata
+- Supports explicit criterion approval, score/feedback overrides, manual review flags, draft approval, and rejection
+- Records reviewer identity, reason, previous values, final values, and timestamps in append-only audit entries
+- Finalizes only approved, unblocked drafts whose scores remain within the official rubric maximums
+- Writes finalized totals into the existing `GradingRun`, `QuestionGrade`, and `GradeSummary` domain
+- Refuses to replace an existing grading run unless `allowReplacement` is explicitly true and a replacement reason is supplied
+
+### Human Review Lifecycle
+
+`POST /api/submissions/{id}/grade-with-rubric/save-draft` generates and stores one new draft.
+`GET /api/submissions/{id}/grading-drafts` lists stored drafts and audit history.
+`PATCH /api/grading-drafts/{draftId}/review` accepts `approve_criterion`,
+`override_criterion`, `mark_criterion_needs_review`, `approve_draft`, or `reject_draft`.
+`POST /api/grading-drafts/{draftId}/finalize` converts an approved draft into the existing
+final-grade records. The lifecycle is `draft` or `needs_review` → `approved` or `rejected` →
+`finalized`; AI generation never approves or finalizes its own output.
+
 ## Database Schema
 
 Key entities:
@@ -206,6 +224,9 @@ Key entities:
 - **OfficialAnswerKey**: Versioned lab-assistant reference answer for a question
 - **OfficialRubric**: Versioned lab-assistant rubric for an assignment
 - **OfficialRubricCriterion**: Validated assignment-level or question-level rubric criterion
+- **RubricGradingDraft**: Durable AI draft and review/finalization state
+- **RubricGradingDraftCriterion**: AI recommendation plus explicit final human criterion value
+- **RubricGradingDraftAudit**: Append-only reviewer override and finalization history
 - **Document**: PDF documents (assignment questions, student submissions)
 - **DocumentPage**: Individual pages with extracted text and metadata
 - **QuestionExtraction**: Status tracking for AI question extraction
@@ -288,6 +309,7 @@ npm run test:phase3  # Run official-reference readiness tests
 npm run test:phase4  # Run structured student-answer extraction tests
 npm run test:phase5  # Run official answer-key comparison tests
 npm run test:phase6  # Run official rubric draft-grading tests
+npm run test:phase7  # Run human review and finalization workflow tests
 npm run db:generate  # Regenerate Prisma client
 npm run db:push      # Push schema changes to database
 npm run db:seed      # Seed courses (PBO & SISOP)
